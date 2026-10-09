@@ -6,6 +6,7 @@ colorTo: gray
 sdk: docker
 app_port: 8080
 pinned: false
+license: apache-2.0
 ---
 
 # Microduck RL playground
@@ -145,3 +146,7 @@ npm run build   # production bundle in app/dist/
 The Space builds with the included `Dockerfile` (Vite build, served by
 nginx-unprivileged on port 8080). Static assets (meshes, policies, audio,
 images) live in `app/public/` and keep their historical URLs.
+
+## License
+
+The app code is released under the [Apache License 2.0](LICENSE).
