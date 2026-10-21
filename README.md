@@ -48,6 +48,25 @@ and [pollen-robotics/microduck_rl](https://github.com/pollen-robotics/microduck_
 - Drag to orbit, scroll to zoom
 - Colour dots: repaint the duck (it quacks)
 
+### Autonomous pilot
+
+The in-game **Pilot** panel switches between the original manual controls
+and autonomous driving. **Roam** chooses safe targets around the arena,
+turns away from walls and reverses/turns when progress stalls. **Chase ball**
+uses the simulated robot and ball poses to align, approach and launch the
+existing left/right kick policy. **Stop** returns to manual control at once;
+holding any movement key, stick or touch control temporarily overrides the
+autonomous command without changing the trained locomotion policy.
+
+Simulator perception is isolated in `app/src/game/autonomy/perception.js` so
+pose/range estimates from real sensors can replace it without changing the
+behaviour controller.
+
+The **Cubes** panel enables arena placement mode. Click **Place cube**, then
+click the arena floor to add up to eight solid obstacles; **Clear** removes
+them. Autonomous driving treats placed cubes as sensed obstacles in addition
+to their MuJoCo collision geometry.
+
 In roller mode the legs-only actions (kicks, sit) are disabled and their
 hints fade out; play the ball by driving into it.
 
@@ -95,6 +114,9 @@ Ghost limitations in v1: a peer in roller mode renders with the roller rig
 only if your tab has already loaded it (otherwise it falls back to the leg
 rig), and ghost wheels don't spin (passive wheel joints aren't broadcast).
 Old clients simply ignore the new variant flag.
+
+Multiplayer ghosts are disabled on `localhost`/`127.0.0.1` so development
+tabs do not join the public Space lobby or appear as stale duplicate ducks.
 
 ## How it works
 

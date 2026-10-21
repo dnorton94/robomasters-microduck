@@ -32,6 +32,7 @@ import {
   CROUCH_PERIOD_S, CROUCH_END_PHASE,
   GROUND_PICK_PERIOD_S, GROUND_PICK_END_PHASE,
   BALL_RADIUS, BALL_PARK_POS, ARENA_HALF, SPAWN_X, SPAWN_Y,
+  OBSTACLE_COUNT, OBSTACLE_SIZE,
   RELIEF_BUMPS, RELIEF_HMAX, RELIEF_GRID, RELIEF_SINK, RELIEF_RATE,
 } from "./constants.js";
 import { loadProps, propColliders } from "./props.js";
@@ -48,6 +49,8 @@ import { GamepadSource } from "./controls/gamepad.js";
 import { haptics } from "./haptics.js";
 import { TouchSource } from "./controls/touch.js";
 import { WaypointSource } from "./controls/waypoint.js";
+import { AutonomousSource } from "./autonomy/autonomous-source.js";
+import { createSimPerception } from "./autonomy/perception.js";
 import * as fx from "./fx/fx-wireframe.js";
 import { createWaypointMarker } from "./fx/waypoint-marker.js";
 import { createCeremony, CAM_RESET_S } from "./ceremony.js";
@@ -203,6 +206,17 @@ async function boot({ scene, camera, renderer }) {
       doc.querySelector("worldbody").appendChild(
         el("geom", { name: w.name, type: "box", pos: w.pos, size: w.size }),
       );
+    }
+    // Runtime-placeable static cubes. Mocap bodies can be repositioned by
+    // writing data.mocap_pos, while their geoms remain fully collidable.
+    for (let i = 0; i < OBSTACLE_COUNT; i++) {
+      const body = el("body", { name: `user_obstacle_${i}`, mocap: "true", pos: `50 ${i} 0` });
+      body.appendChild(el("geom", {
+        name: `user_obstacle_geom_${i}`, type: "box",
+        size: `${OBSTACLE_SIZE / 2} ${OBSTACLE_SIZE / 2} ${OBSTACLE_SIZE / 2}`,
+        friction: "0.9 0.01 0.001",
+      }));
+      doc.querySelector("worldbody").appendChild(body);
     }
     // Prop library colliders: one static box per enabled prop
     // (declared in props.js next to the visual placement, optionally
@@ -467,6 +481,8 @@ async function boot({ scene, camera, renderer }) {
       standKeyId: mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_KEY.value, "STAND"),
       ballQposAdr: model.jnt("ball_freejoint").qposadr,
       ballDofAdr: model.jnt("ball_freejoint").dofadr,
+      obstacleMocapIds: Array.from({ length: OBSTACLE_COUNT }, (_, i) =>
+        model.body(`user_obstacle_${i}`).mocapid),
       // Foot bodies for the footstep audio heuristic (-1 when a variant
       // has no ankles, e.g. if a future model renames them).
       ankleIds: ["ankle_left", "ankle_right"].map(
@@ -479,7 +495,7 @@ async function boot({ scene, camera, renderer }) {
     };
   }
   // Active-variant address block, swapped wholesale by activateLoco.
-  let { qposAdr, dofAdr, gyroAdr, trunkId, standKeyId, ballQposAdr, ballDofAdr, extraJoints,
+  let { qposAdr, dofAdr, gyroAdr, trunkId, standKeyId, ballQposAdr, ballDofAdr, obstacleMocapIds, extraJoints,
     ankleIds } = resolveAddrs(model, k);
 
   // Locomotion variants stay resident once built (model + data + rig +
@@ -513,8 +529,23 @@ async function boot({ scene, camera, renderer }) {
     isSuppressed: () => inputLocked || headMode || mode !== "walk" || !!grab,
     getManualOverride: () => padSource.isActive() || touchSource.isActive() || kbSource.isActive(),
   });
-  // Keyboard, pad and touch preempt by priority; waypoint is the fallback.
-  const controller = new Controller({ sources: [padSource, touchSource, kbSource, waypointSource] });
+  const manualActive = () => padSource.isActive() || touchSource.isActive() || kbSource.isActive();
+  const perception = createSimPerception({
+    getRobotPose: () => ({ x: data.qpos[0], y: data.qpos[1], yaw: duckYaw(data.qpos) }),
+    getBallPose: () => ballActive
+      ? { x: data.qpos[ballQposAdr], y: data.qpos[ballQposAdr + 1], active: true }
+      : { active: false },
+    getArena: () => ({ half: ARENA_HALF, obstacles: obstaclePositions.filter(Boolean) }),
+  });
+  const autonomousSource = new AutonomousSource({
+    perception,
+    getVelocityLimits: () => velLims(),
+    manualActive,
+    onStatus: (autonomyStatus) => setStore({ autonomyStatus }),
+  });
+  // Physical inputs always win. Autonomy then shares the exact same command
+  // path as click-to-walk/manual control; waypoint remains the idle fallback.
+  const controller = new Controller({ sources: [padSource, touchSource, kbSource, autonomousSource, waypointSource] });
   // Right-stick camera state, read by the telemetry before the camera-orbit
   // section below has evaluated.
   let padOrbitLive = false;
@@ -548,6 +579,41 @@ async function boot({ scene, camera, renderer }) {
   // Local-only kickable ball: false while parked at the keyframe spot
   // (mesh hidden), true once popped in front of the duck.
   let ballActive = false;
+  const obstaclePositions = Array(OBSTACLE_COUNT).fill(null);
+  let obstacleMeshes = [];
+  let obstaclePlacement = false;
+  function syncObstaclesToPhysics() {
+    const pos = data.mocap_pos;
+    const quat = data.mocap_quat;
+    for (let i = 0; i < OBSTACLE_COUNT; i++) {
+      const id = obstacleMocapIds[i], p = obstaclePositions[i];
+      const a = id * 3, q = id * 4;
+      pos[a] = p?.x ?? 50; pos[a + 1] = p?.y ?? i; pos[a + 2] = p ? OBSTACLE_SIZE / 2 : 0;
+      quat[q] = 1; quat[q + 1] = quat[q + 2] = quat[q + 3] = 0;
+      const mesh = obstacleMeshes[i];
+      if (mesh) {
+        mesh.visible = !!p;
+        if (p) mesh.position.set(p.x, OBSTACLE_SIZE / 2, -p.y);
+      }
+    }
+    mujoco.mj_forward(model, data);
+  }
+  function placeObstacle(x, y) {
+    let index = obstaclePositions.findIndex((p) => !p);
+    if (index < 0) index = 0; // cycle the oldest slot once all eight are used
+    const lim = ARENA_HALF - OBSTACLE_SIZE / 2 - 0.04;
+    obstaclePositions[index] = {
+      x: Math.min(lim, Math.max(-lim, x)),
+      y: Math.min(lim, Math.max(-lim, y)),
+    };
+    syncObstaclesToPhysics();
+    setStore({ obstacleCount: obstaclePositions.filter(Boolean).length });
+  }
+  function clearObstacles() {
+    obstaclePositions.fill(null);
+    syncObstaclesToPhysics();
+    setStore({ obstacleCount: 0 });
+  }
 
   // The twist the policy actually receives. Mid-roll every movement input
   // is ignored (zero twist) until the roll hands back to walk on its own.
@@ -669,6 +735,7 @@ async function boot({ scene, camera, renderer }) {
     headTarget.fill(0);
     headSmooth.fill(0);
     mujoco.mj_resetDataKeyframe(model, data, standKeyId);
+    syncObstaclesToPhysics();
     mujoco.mj_forward(model, data);
     lastAction.fill(0);
     sitFlag = 0;
@@ -1227,13 +1294,28 @@ async function boot({ scene, camera, renderer }) {
   reliefGridMat = grid.material; // relief drive mirrors uTopoScale into it
   const { wallMats, wallMeshes } = makeArenaWalls();
   for (const m of wallMeshes) scene.add(m);
+  const obstacleMaterial = new THREE.MeshStandardMaterial({
+    color: 0xff7a2f, roughness: 0.72, metalness: 0.05,
+  });
+  obstacleMeshes = Array.from({ length: OBSTACLE_COUNT }, () => {
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(OBSTACLE_SIZE, OBSTACLE_SIZE, OBSTACLE_SIZE),
+      obstacleMaterial,
+    );
+    mesh.visible = false;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    scene.add(mesh);
+    return mesh;
+  });
+  syncObstaclesToPhysics();
 
   let rig = await rigPromise;
   scene.add(rig.placer);
   let trunkGroup = rig.bodies.get("trunk_base");
   locos.legs = {
     model, data, rig, trunkGroup,
-    qposAdr, dofAdr, gyroAdr, trunkId, standKeyId, ballQposAdr, ballDofAdr, extraJoints,
+    qposAdr, dofAdr, gyroAdr, trunkId, standKeyId, ballQposAdr, ballDofAdr, obstacleMocapIds, extraJoints,
   };
 
   // ── Locomotion variant switching (legs <-> rollers) ──────────────────
@@ -1290,7 +1372,8 @@ async function boot({ scene, camera, renderer }) {
     loco = name;
     scene.remove(rig.placer);
     ({ model, data, rig, trunkGroup, qposAdr, dofAdr, gyroAdr, trunkId,
-       standKeyId, ballQposAdr, ballDofAdr, extraJoints, ankleIds } = L);
+       standKeyId, ballQposAdr, ballDofAdr, obstacleMocapIds, extraJoints, ankleIds } = L);
+    syncObstaclesToPhysics();
     // The rig may have been built (or last shown) under another colourway.
     applyVariant(rig, currentVariant);
     scene.add(rig.placer);
@@ -1615,6 +1698,20 @@ async function boot({ scene, camera, renderer }) {
   });
   window.addEventListener("pointerup", endGrab);
   window.addEventListener("pointercancel", endGrab);
+
+  // Placement mode claims plain floor clicks before OrbitControls and the
+  // click-to-walk source. Camera orbit remains available when mode is off.
+  const obstaclePlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  const obstacleHit = new THREE.Vector3();
+  window.addEventListener("pointerdown", (e) => {
+    if (!obstaclePlacement || inputLocked || e.target !== renderer.domElement ||
+        e.pointerType !== "mouse" || e.button !== 0) return;
+    grabRayFrom(e);
+    if (!_grabRaycaster.ray.intersectPlane(obstaclePlane, obstacleHit)) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    placeObstacle(obstacleHit.x, -obstacleHit.z);
+  }, true);
 
   // Waypoint marker: hairline tron reticle at the clicked floor point
   // (fx/waypoint-marker.js), with acquire/arrive animations. Driven each
@@ -2162,6 +2259,23 @@ async function boot({ scene, camera, renderer }) {
       reconcileLoco();
     },
     resetSim,
+    setAutonomy: ({ enabled, mode } = {}) => {
+      const nextMode = mode === "chase" ? "chase" : "roam";
+      autonomousSource.configure({ enabled, mode: nextMode });
+      waypointSource.cancel();
+      setStore({ autonomyEnabled: !!enabled, autonomyMode: nextMode });
+    },
+    stopAutonomy: () => {
+      autonomousSource.stop();
+      setStore({ autonomyEnabled: false, autonomyStatus: "Stopped" });
+    },
+    setObstaclePlacement: (enabled) => {
+      obstaclePlacement = !!enabled;
+      waypointSource.cancel();
+      renderer.domElement.style.cursor = obstaclePlacement ? "copy" : "";
+      setStore({ obstaclePlacement });
+    },
+    clearObstacles,
     spawnBall: () => spawnBall(),
     startEntrance: () => ceremony.startEntrance(),
     loadCustomPolicy: (ref) => loadCustomPolicyIntoGame(ref),

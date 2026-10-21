@@ -404,10 +404,78 @@ function Quickbar() {
         </Box>
       </HudPlate>
       <PolicyChip />
+      <AutonomyPanel />
+      <ObstaclePanel />
       {/* Sound is fully disabled for now (SOUND_DISABLED in audio.js) -
           the mute toggle comes back with the finished sound design. */}
       {/* <SoundToggle /> */}
     </Box>
+  );
+}
+
+function ObstaclePanel() {
+  const placing = useGame((s) => s.obstaclePlacement);
+  const count = useGame((s) => s.obstacleCount);
+  return (
+    <HudPlate caption="Cubes">
+      <Box sx={{ display: "inline-flex", alignItems: "stretch", height: "100%" }}>
+        <Box component="button" type="button" aria-pressed={placing}
+          onClick={() => { uiClick(); gameApi.setObstaclePlacement?.(!placing); }}
+          sx={{ ...hudHitSx, px: "0.7rem", background: placing ? ORANGE : "transparent",
+            color: placing ? COMIC_INK : CREAM }}>
+          {placing ? "Click arena" : "Place cube"}
+        </Box>
+        <Box sx={{ ...hudHitSx, cursor: "default", px: "0.55rem", color: "rgba(250,248,242,.65)" }}>
+          {count}/8
+        </Box>
+        <Box component="button" type="button" disabled={!count}
+          onClick={() => { uiClick(); gameApi.clearObstacles?.(); }}
+          sx={{ ...hudHitSx, px: "0.6rem", opacity: count ? 1 : 0.35 }}>
+          Clear
+        </Box>
+      </Box>
+    </HudPlate>
+  );
+}
+
+function AutonomyPanel() {
+  const enabled = useGame((s) => s.autonomyEnabled);
+  const mode = useGame((s) => s.autonomyMode);
+  const status = useGame((s) => s.autonomyStatus);
+  const set = (nextEnabled, nextMode = mode) => {
+    uiClick();
+    gameApi.setAutonomy?.({ enabled: nextEnabled, mode: nextMode });
+  };
+  return (
+    <HudPlate caption="Pilot">
+      <Box sx={{ display: "inline-flex", alignItems: "stretch", height: "100%" }}>
+        <Box
+          component="button" type="button" aria-pressed={enabled}
+          onClick={() => set(!enabled)}
+          sx={{ ...hudHitSx, px: "0.75rem", color: enabled ? COMIC_INK : CREAM,
+            background: enabled ? ORANGE : "transparent" }}
+        >
+          {enabled ? "Autonomous" : "Manual"}
+        </Box>
+        {enabled && [
+          ["roam", "Roam"], ["chase", "Chase ball"],
+        ].map(([value, label]) => (
+          <Box key={value} component="button" type="button" aria-pressed={mode === value}
+            onClick={() => set(true, value)}
+            sx={{ ...hudHitSx, px: "0.65rem", color: mode === value ? ORANGE : "rgba(250,248,242,.65)" }}>
+            {label}
+          </Box>
+        ))}
+        <Box sx={{ ...hudHitSx, cursor: "default", px: "0.7rem", minWidth: "8rem", color: "rgba(250,248,242,.72)", fontFamily: MONO, fontSize: "0.58rem" }}>
+          {status}
+        </Box>
+        <Box component="button" type="button" aria-label="Stop autonomous control"
+          onClick={() => { uiClick(); gameApi.stopAutonomy?.(); }}
+          sx={{ ...hudHitSx, px: "0.7rem", background: "#d83b32", color: CREAM }}>
+          Stop
+        </Box>
+      </Box>
+    </HudPlate>
   );
 }
 

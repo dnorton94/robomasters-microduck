@@ -107,6 +107,15 @@ export async function initGhosts(env) {
     mapDots: () => [], destroy() {}, injectState: () => false,
     setSendHz: () => {},
   };
+  // A local preview must never join the production public lobby. Doing so
+  // makes other dev tabs (and real Space visitors) look like stale copies
+  // of the current duck, while also leaving noisy relay/WebRTC connections
+  // behind during hot reloads. Production hosts keep multiplayer unchanged.
+  if (typeof location !== "undefined" &&
+      (location.hostname === "localhost" || location.hostname === "127.0.0.1" ||
+       location.hostname === "[::1]")) {
+    return noop;
+  }
   let room;
   try {
     // Vendored npm dep (was esm.run); dynamic so it stays a lazy chunk

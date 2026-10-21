@@ -67,6 +67,12 @@ export const GROUND_PICK_END_PHASE = 0.7;
 export const BALL_RADIUS = 0.05;
 export const BALL_PARK_POS = "50 0 0.05";
 
+// User-placeable mocap cubes. They are compiled into both locomotion models
+// and parked off-arena until placed, giving us movable static collision
+// geometry without rebuilding MuJoCo at runtime.
+export const OBSTACLE_COUNT = 8;
+export const OBSTACLE_SIZE = 0.18;
+
 // Square arena boxing the play area: static walls at +-ARENA_HALF keep
 // the ball (and the duck) inside. Tall enough that neither steps over.
 export const ARENA_HALF = 1.5; // inner half-size, m
