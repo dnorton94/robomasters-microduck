@@ -2282,18 +2282,28 @@ async function boot({ scene, camera, renderer }) {
     },
     clearObstacles,
     renderPov: (viewRenderer, viewCamera) => {
-      const head = rig.bodies.get("head_roll") ?? rig.bodies.get("head_yaw") ?? trunkGroup;
-      head.getWorldPosition(_povPos);
+      // In kinematics.json, body `jaw_soft` carries joint `head_roll` and
+      // therefore owns the MJCF head_camera frame.
+      const head = rig.bodies.get("jaw_soft") ?? rig.bodies.get("yaw_roll_motion") ?? trunkGroup;
+      // Exact `head_camera` origin from robot_allcollisions.xml. The visual
+      // kinematics already carry the head body's MJCF transform, so the
+      // optical axis points outward along the body's local -Z.
+      _povPos.set(0.0155, -0.0000913778, -0.0733);
+      head.localToWorld(_povPos);
       head.getWorldQuaternion(_povQuat);
-      // The rendered head rig faces local -X (the policy/MJCF locomotion
-      // frame uses +X, but the authored visual body's camera side is -X).
-      _povForward.set(-1, 0, 0).applyQuaternion(_povQuat).normalize();
-      _povUp.set(0, 0, 1).applyQuaternion(_povQuat).normalize();
-      viewCamera.position.copy(_povPos).addScaledVector(_povForward, 0.105).addScaledVector(_povUp, 0.015);
+      _povForward.set(0, 0, -1).applyQuaternion(_povQuat).normalize();
+      _povUp.set(1, 0, 0).applyQuaternion(_povQuat).normalize();
+      viewCamera.position.copy(_povPos);
       viewCamera.up.copy(_povUp);
       _povLook.copy(_povPos).addScaledVector(_povForward, 1);
       viewCamera.lookAt(_povLook);
+      // The decimated visual shell is opaque across the physical lens
+      // opening. Hide only this robot during the sensor render so its own
+      // head does not occlude the view; physics and the main view are intact.
+      const rigVisible = rig.placer.visible;
+      rig.placer.visible = false;
       viewRenderer.render(scene, viewCamera);
+      rig.placer.visible = rigVisible;
       return true;
     },
     spawnBall: () => spawnBall(),
