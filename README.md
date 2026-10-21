@@ -71,6 +71,12 @@ A live **Robot POV** inset renders from MicroDuck's head so learners can
 compare its egocentric view with the normal third-person camera. The inset
 can be hidden and restored without changing robot control.
 
+The opt-in **Microphone Sensor** exposes live input level, time-domain data,
+frequency data, the Web Audio analyser and the underlying `MediaStream` via
+`microphoneApi` (also `window.__microduckMicrophone`). Audio stays local and
+is neither recorded nor transmitted by the simulator. This is an extension
+point for later speech commands, wake words and sound-reactive behaviours.
+
 In roller mode the legs-only actions (kicks, sit) are disabled and their
 hints fade out; play the ball by driving into it.
 
