@@ -10,6 +10,7 @@ import Hud from "./ui/Hud.jsx";
 import TouchOverlay from "./ui/TouchOverlay.jsx";
 import BiosOverlay from "./ui/BiosOverlay.jsx";
 import TitleMenu from "./ui/TitleMenu.jsx";
+import PovViewport from "./ui/PovViewport.jsx";
 import { useGame } from "./store.js";
 
 export default function App() {
@@ -81,6 +82,7 @@ export default function App() {
       <Halftone />
       <CrtOverlay />
       <Hud />
+      <PovViewport />
       <TouchOverlay />
       <BiosOverlay />
       <TitleMenu />

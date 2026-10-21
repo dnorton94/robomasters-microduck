@@ -1734,6 +1734,11 @@ async function boot({ scene, camera, renderer }) {
   // trunk group can take the freejoint pose in raw MJCF coordinates.
   const _target = new THREE.Vector3();
   const _follow = new THREE.Vector3();
+  const _povPos = new THREE.Vector3();
+  const _povLook = new THREE.Vector3();
+  const _povQuat = new THREE.Quaternion();
+  const _povForward = new THREE.Vector3();
+  const _povUp = new THREE.Vector3();
   function syncRig() {
     const qpos = data.qpos;
     trunkGroup.position.set(qpos[0], qpos[1], qpos[2]);
@@ -2276,6 +2281,21 @@ async function boot({ scene, camera, renderer }) {
       setStore({ obstaclePlacement });
     },
     clearObstacles,
+    renderPov: (viewRenderer, viewCamera) => {
+      const head = rig.bodies.get("head_roll") ?? rig.bodies.get("head_yaw") ?? trunkGroup;
+      head.getWorldPosition(_povPos);
+      head.getWorldQuaternion(_povQuat);
+      // The rendered head rig faces local -X (the policy/MJCF locomotion
+      // frame uses +X, but the authored visual body's camera side is -X).
+      _povForward.set(-1, 0, 0).applyQuaternion(_povQuat).normalize();
+      _povUp.set(0, 0, 1).applyQuaternion(_povQuat).normalize();
+      viewCamera.position.copy(_povPos).addScaledVector(_povForward, 0.105).addScaledVector(_povUp, 0.015);
+      viewCamera.up.copy(_povUp);
+      _povLook.copy(_povPos).addScaledVector(_povForward, 1);
+      viewCamera.lookAt(_povLook);
+      viewRenderer.render(scene, viewCamera);
+      return true;
+    },
     spawnBall: () => spawnBall(),
     startEntrance: () => ceremony.startEntrance(),
     loadCustomPolicy: (ref) => loadCustomPolicyIntoGame(ref),

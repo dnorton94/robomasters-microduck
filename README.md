@@ -67,6 +67,10 @@ click the arena floor to add up to eight solid obstacles; **Clear** removes
 them. Autonomous driving treats placed cubes as sensed obstacles in addition
 to their MuJoCo collision geometry.
 
+A live **Robot POV** inset renders from MicroDuck's head so learners can
+compare its egocentric view with the normal third-person camera. The inset
+can be hidden and restored without changing robot control.
+
 In roller mode the legs-only actions (kicks, sit) are disabled and their
 hints fade out; play the ball by driving into it.
 

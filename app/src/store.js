@@ -44,6 +44,7 @@ export const useGame = create(
     autonomyStatus: "Manual control",
     obstaclePlacement: false,
     obstacleCount: 0,
+    povEnabled: true,
     // Throttled telemetry block (4 Hz), bottom-right OSD
     telemetry: { fps: 0, ctrlHz: 0, speed: 0, odo: 0, peers: 0 },
   })),
