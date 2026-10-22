@@ -52,6 +52,7 @@ import { WaypointSource } from "./controls/waypoint.js";
 import { AutonomousSource } from "./autonomy/autonomous-source.js";
 import { createSimPerception } from "./autonomy/perception.js";
 import { publishTofFrame, tofApi } from "./tof-sensor.js";
+import { publishNfcState, nfcApi } from "./nfc-sensor.js";
 import * as fx from "./fx/fx-wireframe.js";
 import { createWaypointMarker } from "./fx/waypoint-marker.js";
 import { createCeremony, CAM_RESET_S } from "./ceremony.js";
@@ -583,6 +584,34 @@ async function boot({ scene, camera, renderer }) {
   const obstaclePositions = Array(OBSTACLE_COUNT).fill(null);
   let obstacleMeshes = [];
   let obstaclePlacement = false;
+  const nfcTags = [];
+  let nfcPlacement = false;
+  const NFC_TAG_LIMIT = 6;
+  function placeNfcTag(x, y) {
+    if (nfcTags.length >= NFC_TAG_LIMIT) {
+      const old = nfcTags.shift();
+      scene.remove(old.mesh);
+      old.mesh.geometry.dispose();
+      old.mesh.material.dispose();
+    }
+    const number = nfcTags.length ? Math.max(...nfcTags.map((t) => t.number)) + 1 : 1;
+    const material = new THREE.MeshStandardMaterial({ color: 0x20d6c7, emissive: 0x073f3b, side: THREE.DoubleSide });
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.008, 24), material);
+    mesh.rotation.z = Math.PI / 2;
+    mesh.position.set(x, 0.12, -y);
+    scene.add(mesh);
+    nfcTags.push({ id: `TAG-${String(number).padStart(2, "0")}`, number, mesh });
+    publishNfcState({ tagCount: nfcTags.length });
+  }
+  function clearNfcTags() {
+    for (const tag of nfcTags) {
+      scene.remove(tag.mesh);
+      tag.mesh.geometry.dispose();
+      tag.mesh.material.dispose();
+    }
+    nfcTags.length = 0;
+    publishNfcState({ tagCount: 0, head: null, beak: null });
+  }
   function syncObstaclesToPhysics() {
     const pos = data.mocap_pos;
     const quat = data.mocap_quat;
@@ -1705,13 +1734,14 @@ async function boot({ scene, camera, renderer }) {
   const obstaclePlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   const obstacleHit = new THREE.Vector3();
   window.addEventListener("pointerdown", (e) => {
-    if (!obstaclePlacement || inputLocked || e.target !== renderer.domElement ||
+    if ((!obstaclePlacement && !nfcPlacement) || inputLocked || e.target !== renderer.domElement ||
         e.pointerType !== "mouse" || e.button !== 0) return;
     grabRayFrom(e);
     if (!_grabRaycaster.ray.intersectPlane(obstaclePlane, obstacleHit)) return;
     e.preventDefault();
     e.stopImmediatePropagation();
-    placeObstacle(obstacleHit.x, -obstacleHit.z);
+    if (nfcPlacement) placeNfcTag(obstacleHit.x, -obstacleHit.z);
+    else placeObstacle(obstacleHit.x, -obstacleHit.z);
   }, true);
 
   // Waypoint marker: hairline tron reticle at the clicked floor point
@@ -1744,6 +1774,9 @@ async function boot({ scene, camera, renderer }) {
   const _tofRaycaster = new THREE.Raycaster();
   const _tofNdc = new THREE.Vector2();
   const _tofFrame = Array(64).fill(null);
+  const _nfcHead = new THREE.Vector3();
+  const _nfcBeak = new THREE.Vector3();
+  let nfcLastAt = -Infinity;
   const _tofTargets = [
     ...wallMeshes, ...obstacleMeshes, ballMesh,
     ...Object.values(propGroups).flat(),
@@ -1777,6 +1810,28 @@ async function boot({ scene, camera, renderer }) {
       }
     }
     publishTofFrame(_tofFrame, now);
+  }
+  function updateNfcSensors(now) {
+    if (!nfcApi.getState().enabled || now - nfcLastAt < 100) return;
+    nfcLastAt = now;
+    const head = rig.bodies.get("jaw_soft") ?? rig.bodies.get("yaw_roll_motion") ?? trunkGroup;
+    _nfcHead.set(0.015, 0, -0.035); head.localToWorld(_nfcHead);
+    _nfcBeak.set(0.015, 0, -0.105); head.localToWorld(_nfcBeak);
+    const nearest = (point) => {
+      let found = null;
+      for (const tag of nfcTags) {
+        const distanceM = point.distanceTo(tag.mesh.position);
+        if (distanceM <= 0.12 && (!found || distanceM < found.distanceM))
+          found = { id: tag.id, distanceM: Math.round(distanceM * 1000) / 1000 };
+      }
+      return found;
+    };
+    const headTag = nearest(_nfcHead), beakTag = nearest(_nfcBeak);
+    for (const tag of nfcTags) {
+      const active = headTag?.id === tag.id || beakTag?.id === tag.id;
+      tag.mesh.material.emissive.setHex(active ? 0x22fff0 : 0x073f3b);
+    }
+    publishNfcState({ head: headTag, beak: beakTag, tagCount: nfcTags.length });
   }
   function syncRig() {
     const qpos = data.qpos;
@@ -2067,7 +2122,9 @@ async function boot({ scene, camera, renderer }) {
       padOrbitVel.el = 0;
     }
     syncRig();
-    updateTofSensor(performance.now());
+    const sensorNow = performance.now();
+    updateTofSensor(sensorNow);
+    updateNfcSensors(sensorNow);
     syncJaw();
     ghosts?.update();
     // Spatial audio follows the movers: listener on the camera, emitters
@@ -2316,11 +2373,20 @@ async function boot({ scene, camera, renderer }) {
     },
     setObstaclePlacement: (enabled) => {
       obstaclePlacement = !!enabled;
+      if (obstaclePlacement) { nfcPlacement = false; publishNfcState({ placing: false }); }
       waypointSource.cancel();
       renderer.domElement.style.cursor = obstaclePlacement ? "copy" : "";
       setStore({ obstaclePlacement });
     },
     clearObstacles,
+    setNfcPlacement: (enabled) => {
+      nfcPlacement = !!enabled;
+      if (nfcPlacement) { obstaclePlacement = false; setStore({ obstaclePlacement: false }); }
+      waypointSource.cancel();
+      renderer.domElement.style.cursor = nfcPlacement ? "copy" : "";
+      publishNfcState({ placing: nfcPlacement });
+    },
+    clearNfcTags,
     renderPov: (viewRenderer, viewCamera) => {
       // In kinematics.json, body `jaw_soft` carries joint `head_roll` and
       // therefore owns the MJCF head_camera frame.

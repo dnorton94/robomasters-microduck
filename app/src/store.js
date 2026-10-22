@@ -48,6 +48,7 @@ export const useGame = create(
     microphone: { status: "off", level: 0, error: null },
     tof: { enabled: true, width: 8, height: 8, rangeM: 2, hz: 10,
       timestamp: 0, distancesM: Array(64).fill(null) },
+    nfc: { enabled: true, head: null, beak: null, tagCount: 0, placing: false, timestamp: 0 },
     // Throttled telemetry block (4 Hz), bottom-right OSD
     telemetry: { fps: 0, ctrlHz: 0, speed: 0, odo: 0, peers: 0 },
   })),

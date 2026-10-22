@@ -13,6 +13,7 @@ import TitleMenu from "./ui/TitleMenu.jsx";
 import PovViewport from "./ui/PovViewport.jsx";
 import MicrophonePanel from "./ui/MicrophonePanel.jsx";
 import TofPanel from "./ui/TofPanel.jsx";
+import NfcPanel from "./ui/NfcPanel.jsx";
 import { useGame } from "./store.js";
 
 export default function App() {
@@ -87,6 +88,7 @@ export default function App() {
       <PovViewport />
       <MicrophonePanel />
       <TofPanel />
+      <NfcPanel />
       <TouchOverlay />
       <BiosOverlay />
       <TitleMenu />
