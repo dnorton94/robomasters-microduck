@@ -12,6 +12,7 @@ import BiosOverlay from "./ui/BiosOverlay.jsx";
 import TitleMenu from "./ui/TitleMenu.jsx";
 import PovViewport from "./ui/PovViewport.jsx";
 import MicrophonePanel from "./ui/MicrophonePanel.jsx";
+import TofPanel from "./ui/TofPanel.jsx";
 import { useGame } from "./store.js";
 
 export default function App() {
@@ -85,6 +86,7 @@ export default function App() {
       <Hud />
       <PovViewport />
       <MicrophonePanel />
+      <TofPanel />
       <TouchOverlay />
       <BiosOverlay />
       <TitleMenu />

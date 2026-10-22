@@ -77,6 +77,12 @@ frequency data, the Web Audio analyser and the underlying `MediaStream` via
 is neither recorded nor transmitted by the simulator. This is an extension
 point for later speech commands, wake words and sound-reactive behaviours.
 
+The simulated head also publishes a real-time **8×8 ToF depth frame** at
+10 Hz. Sixty-four rays originate at the MJCF's physical ToF site and measure
+walls, props, the ball and placed cubes up to 2 m away. The HUD shows the
+numbers as a near-orange/far-blue grid, while extensions can consume the same
+data through `tofApi` or `window.__microduckTof`.
+
 In roller mode the legs-only actions (kicks, sit) are disabled and their
 hints fade out; play the ball by driving into it.
 

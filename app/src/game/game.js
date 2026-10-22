@@ -51,6 +51,7 @@ import { TouchSource } from "./controls/touch.js";
 import { WaypointSource } from "./controls/waypoint.js";
 import { AutonomousSource } from "./autonomy/autonomous-source.js";
 import { createSimPerception } from "./autonomy/perception.js";
+import { publishTofFrame, tofApi } from "./tof-sensor.js";
 import * as fx from "./fx/fx-wireframe.js";
 import { createWaypointMarker } from "./fx/waypoint-marker.js";
 import { createCeremony, CAM_RESET_S } from "./ceremony.js";
@@ -1739,6 +1740,44 @@ async function boot({ scene, camera, renderer }) {
   const _povQuat = new THREE.Quaternion();
   const _povForward = new THREE.Vector3();
   const _povUp = new THREE.Vector3();
+  const _tofCamera = new THREE.PerspectiveCamera(45, 1, 0.025, 2);
+  const _tofRaycaster = new THREE.Raycaster();
+  const _tofNdc = new THREE.Vector2();
+  const _tofFrame = Array(64).fill(null);
+  const _tofTargets = [
+    ...wallMeshes, ...obstacleMeshes, ballMesh,
+    ...Object.values(propGroups).flat(),
+  ];
+  let tofLastAt = -Infinity;
+
+  function updateTofSensor(now) {
+    if (!tofApi.getState().enabled || now - tofLastAt < 100) return;
+    tofLastAt = now;
+    const head = rig.bodies.get("jaw_soft") ?? rig.bodies.get("yaw_roll_motion") ?? trunkGroup;
+    // Real ToF site from the MJCF, slightly to the side of the RGB lens.
+    _povPos.set(0.0135, 0.0224086, -0.0733);
+    head.localToWorld(_povPos);
+    head.getWorldQuaternion(_povQuat);
+    _povForward.set(0, 0, -1).applyQuaternion(_povQuat).normalize();
+    _povUp.set(1, 0, 0).applyQuaternion(_povQuat).normalize();
+    _tofCamera.position.copy(_povPos);
+    _tofCamera.up.copy(_povUp);
+    _povLook.copy(_povPos).addScaledVector(_povForward, 1);
+    _tofCamera.lookAt(_povLook);
+    _tofCamera.updateMatrixWorld(true);
+    _tofRaycaster.near = 0.025;
+    _tofRaycaster.far = 2;
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        _tofNdc.set((col + 0.5) / 4 - 1, 1 - (row + 0.5) / 4);
+        _tofRaycaster.setFromCamera(_tofNdc, _tofCamera);
+        const hit = _tofRaycaster.intersectObjects(_tofTargets, true)
+          .find((item) => item.object.visible);
+        _tofFrame[row * 8 + col] = hit ? Math.round(hit.distance * 1000) / 1000 : null;
+      }
+    }
+    publishTofFrame(_tofFrame, now);
+  }
   function syncRig() {
     const qpos = data.qpos;
     trunkGroup.position.set(qpos[0], qpos[1], qpos[2]);
@@ -2028,6 +2067,7 @@ async function boot({ scene, camera, renderer }) {
       padOrbitVel.el = 0;
     }
     syncRig();
+    updateTofSensor(performance.now());
     syncJaw();
     ghosts?.update();
     // Spatial audio follows the movers: listener on the camera, emitters
