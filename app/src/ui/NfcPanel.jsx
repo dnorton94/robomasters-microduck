@@ -22,13 +22,13 @@ export default function NfcPanel() {
   if (!entered || menuOpen || !sensorsVisible) return null;
   if (!nfc.enabled) return (
     <Box component="button" type="button" onClick={() => nfcApi.setEnabled(true)}
-      sx={{ position: "fixed", top: "20.7rem", right: "19.8rem", zIndex: 11,
+      sx={{ position: "fixed", top: "41rem", right: "1.5rem", zIndex: 11,
         border: `2px solid ${CREAM}`, background: "rgba(8,8,12,.82)", color: CREAM,
         fontFamily: ANTON, letterSpacing: ".08em", px: 1, py: .6, cursor: "pointer" }}>Show NFC</Box>
   );
   return (
-    <Box sx={{ position: "fixed", top: "20.7rem", right: "19.8rem", zIndex: 11,
-      width: 230, border: `2px solid ${CREAM}`, background: "rgba(8,8,12,.88)",
+    <Box sx={{ position: "fixed", top: "41rem", right: "1.5rem", zIndex: 11,
+      width: 280, border: `2px solid ${CREAM}`, background: "rgba(8,8,12,.88)",
       boxShadow: `3px 3px 0 ${COMIC_INK}`, boxSizing: "border-box", p: "7px" }}>
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <Box sx={{ fontFamily: MONO, fontSize: ".58rem", letterSpacing: ".11em", color: ORANGE }}>NFC · NEAR-FIELD READERS</Box>

@@ -27,7 +27,7 @@ export default function PovViewport() {
     };
     draw();
     return () => { cancelAnimationFrame(raf); renderer.dispose(); };
-  }, [enabled, entered, menuOpen]);
+  }, [enabled, entered, menuOpen, sensorsVisible]);
 
   if (!entered || menuOpen || !sensorsVisible) return null;
   if (!enabled) {
