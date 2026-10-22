@@ -17,8 +17,9 @@ export default function NfcPanel() {
   const entered = useGame((s) => s.entered);
   const menuOpen = useGame((s) => s.menuOpen);
   const nfc = useGame((s) => s.nfc);
+  const sensorsVisible = useGame((s) => s.sensorsVisible);
   useEffect(() => nfcApi.subscribe((next) => useGame.setState({ nfc: next })), []);
-  if (!entered || menuOpen) return null;
+  if (!entered || menuOpen || !sensorsVisible) return null;
   if (!nfc.enabled) return (
     <Box component="button" type="button" onClick={() => nfcApi.setEnabled(true)}
       sx={{ position: "fixed", top: "20.7rem", right: "19.8rem", zIndex: 11,

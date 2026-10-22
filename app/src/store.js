@@ -44,6 +44,7 @@ export const useGame = create(
     autonomyStatus: "Manual control",
     obstaclePlacement: false,
     obstacleCount: 0,
+    sensorsVisible: true,
     povEnabled: true,
     microphone: { status: "off", level: 0, error: null },
     tof: { enabled: true, width: 8, height: 8, rangeM: 2, hz: 10,

@@ -16,8 +16,9 @@ export default function TofPanel() {
   const entered = useGame((s) => s.entered);
   const menuOpen = useGame((s) => s.menuOpen);
   const tof = useGame((s) => s.tof);
+  const sensorsVisible = useGame((s) => s.sensorsVisible);
   useEffect(() => tofApi.subscribe((next) => useGame.setState({ tof: next })), []);
-  if (!entered || menuOpen) return null;
+  if (!entered || menuOpen || !sensorsVisible) return null;
 
   if (!tof.enabled) return (
     <Box component="button" type="button" onClick={() => tofApi.setEnabled(true)}

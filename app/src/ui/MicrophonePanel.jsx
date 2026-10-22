@@ -9,10 +9,11 @@ export default function MicrophonePanel() {
   const entered = useGame((s) => s.entered);
   const menuOpen = useGame((s) => s.menuOpen);
   const mic = useGame((s) => s.microphone);
+  const sensorsVisible = useGame((s) => s.sensorsVisible);
 
   useEffect(() => microphoneApi.subscribe((next) => useGame.setState({ microphone: next })), []);
   useEffect(() => () => microphoneApi.stop(), []);
-  if (!entered || menuOpen) return null;
+  if (!entered || menuOpen || !sensorsVisible) return null;
 
   const listening = mic.status === "listening";
   const requesting = mic.status === "requesting";

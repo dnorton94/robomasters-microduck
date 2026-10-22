@@ -14,7 +14,7 @@
 //
 // Whole HUD is hidden while the title/pause overlay is up; touch mode
 // strips it down to the thumbs + Back.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Box from "@mui/material/Box";
 import { keyframes } from "@mui/material/styles";
 import { useGame, gameApi } from "../store.js";
@@ -22,40 +22,6 @@ import { VARIANT_LABELS, VARIANT_SWATCH_HEX } from "../game/variants.js";
 import { uiClick, isMuted, setMuted } from "../game/audio.js";
 import { ORANGE, MONO } from "../theme.js";
 import { ANTON, COMIC_INK, CREAM } from "./comic.jsx";
-
-// Matrix-style letter scramble: on change every glyph flips through random
-// charset entries, then locks to its target left-to-right over ~0.45 s.
-// Monospace keeps the width stable mid-scramble.
-const SCRAMBLE_GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#$%&*<>/=+";
-function useScramble(target) {
-  const [text, setText] = useState(target.toUpperCase());
-  const timer = useRef(null);
-  const shown = useRef(target.toUpperCase());
-  useEffect(() => {
-    const t = target.toUpperCase();
-    if (shown.current === t) return;
-    shown.current = t;
-    if (timer.current) clearInterval(timer.current);
-    const n = t.length;
-    const DUR = 450; // ms until the last letter locks
-    const rnd = () => SCRAMBLE_GLYPHS[(Math.random() * SCRAMBLE_GLYPHS.length) | 0];
-    const t0 = performance.now();
-    timer.current = setInterval(() => {
-      const k = Math.floor(((performance.now() - t0) / DUR) * n);
-      if (k >= n) {
-        clearInterval(timer.current);
-        timer.current = null;
-        setText(t);
-        return;
-      }
-      let out = t.slice(0, k);
-      for (let i = k; i < n; i++) out += rnd();
-      setText(out);
-    }, 40);
-    return () => timer.current && clearInterval(timer.current);
-  }, [target]);
-  return text;
-}
 
 const recBlink = keyframes`
   0%, 58% { opacity: 1; }
@@ -260,36 +226,32 @@ function BackButton() {
   );
 }
 
-export const SHOP_URL = "https://store.pollen-robotics.com/collections/microduck";
-
 // Exported: the title/pause overlay renders the same plate in the same
-// spot, so the pause fade reads as the button staying put, not two
-// different buttons swapping.
-export function PreorderButton({ sx }) {
-  const locoWant = useGame((s) => s.locoWant);
-  const text = useScramble(locoWant === "rollers" ? "Pre-order pack" : "Pre-order");
+// spot, so the pause fade reads as the button staying put.
+export function SensorsButton({ sx }) {
+  const visible = useGame((s) => s.sensorsVisible);
   return (
     <HudPlate
-      caption="Shop"
+      caption="View"
       captionSide="right"
       captionFill="orange"
       sx={{ position: "fixed", top: "1.25rem", right: "1.5rem", zIndex: 10, ...sx }}
     >
       <Box
-        component="a"
-        href={SHOP_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={() => uiClick()}
+        component="button"
+        type="button"
+        aria-pressed={visible}
+        aria-label={`${visible ? "Hide" : "Show"} sensor displays`}
+        onClick={() => { uiClick(); useGame.setState({ sensorsVisible: !visible }); }}
         sx={{
           ...hudHitSx,
-          background: ORANGE,
-          color: COMIC_INK,
+          background: visible ? ORANGE : "transparent",
+          color: visible ? COMIC_INK : CREAM,
           "&:hover": { filter: "brightness(1.07)" },
           "&:active": { filter: "brightness(0.92)" },
         }}
       >
-        {text}
+        Sensors
       </Box>
     </HudPlate>
   );
@@ -689,7 +651,7 @@ export default function Hud() {
   return (
     <>
       <BackButton />
-      <PreorderButton />
+      <SensorsButton />
       {!touchMode && (
         <>
           <Quickbar />

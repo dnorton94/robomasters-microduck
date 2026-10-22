@@ -10,6 +10,7 @@ export default function PovViewport() {
   const entered = useGame((s) => s.entered);
   const menuOpen = useGame((s) => s.menuOpen);
   const enabled = useGame((s) => s.povEnabled);
+  const sensorsVisible = useGame((s) => s.sensorsVisible);
 
   useEffect(() => {
     if (!enabled || !entered || menuOpen || !canvasRef.current) return;
@@ -28,7 +29,7 @@ export default function PovViewport() {
     return () => { cancelAnimationFrame(raf); renderer.dispose(); };
   }, [enabled, entered, menuOpen]);
 
-  if (!entered || menuOpen) return null;
+  if (!entered || menuOpen || !sensorsVisible) return null;
   if (!enabled) {
     return (
       <Box component="button" type="button" onClick={() => useGame.setState({ povEnabled: true })}
