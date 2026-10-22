@@ -157,24 +157,6 @@ Plug in a controller and the same mapping as the real robot runtime applies:
 - A: enter / resume the game while the title or pause overlay is up
 - Menu/Start (or Select): exit back to the title overlay while in-game
 
-## Multiplayer ghosts
-
-Other people visiting the Space at the same time show up as translucent
-ducks, live. Peer-to-peer WebRTC via [Trystero](https://github.com/dmotz/trystero)
-(serverless signaling over public Nostr relays), so it works from a static
-Space with no backend. Each tab broadcasts its duck's pose (trunk + 14
-joints + jaw + colour + locomotion variant) at 10 Hz; up to 3 ghosts are
-rendered, extra peers stay connected but invisible. The camcorder-style OSD
-in the top-right corner shows "N ONLINE" when peers are around.
-
-Ghost limitations in v1: a peer in roller mode renders with the roller rig
-only if your tab has already loaded it (otherwise it falls back to the leg
-rig), and ghost wheels don't spin (passive wheel joints aren't broadcast).
-Old clients simply ignore the new variant flag.
-
-Multiplayer ghosts are disabled on `localhost`/`127.0.0.1` so development
-tabs do not join the public Space lobby or appear as stale duplicate ducks.
-
 ## How it works
 
 The app is a Vite + React + MUI shell around an imperative game core:
