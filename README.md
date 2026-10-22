@@ -9,11 +9,31 @@ pinned: false
 license: apache-2.0
 ---
 
-# Microduck RL playground
+# RoboMasters MicroDuck Simulator
 
-Real trained RL policies for the Microduck robot, running fully in the
-browser: MuJoCo compiled to WebAssembly steps the physics, onnxruntime-web
-runs the policy network at 50 Hz. No server, no backend.
+An educational, browser-based MicroDuck simulator with manual control,
+autonomous behaviours and interactive sensors. MuJoCo compiled to WebAssembly
+steps the physics while ONNX Runtime Web runs the robot's real trained movement
+policies at 50 Hz. Everything runs locally in the browser—no simulation backend
+is required.
+
+This project extends the original
+[Pollen Robotics MicroDuck Space](https://huggingface.co/spaces/pollen-robotics/microduck-simulator)
+while preserving its appearance, controls, walking policies and balancing
+behaviour.
+
+## Highlights
+
+- Manual driving with keyboard, touch and gamepad support
+- Autonomous **Roam** and **Chase Ball** modes
+- Immediate manual override and a dedicated **Stop** control
+- Placeable, collidable cube obstacles
+- Robot-eye POV camera
+- Simulated 8×8 Time-of-Flight depth sensor
+- Simulated head and beak NFC readers with placeable tags
+- Opt-in browser microphone input
+- One **Sensors** button that hides or restores every sensor display
+- Feet and roller locomotion using the existing ONNX policies
 
 Two locomotion variants of the same robot are included: **legs** (walking,
 the default) and **rollers** (the wheeled skating variant). Press `M` (or
@@ -67,9 +87,17 @@ click the arena floor to add up to eight solid obstacles; **Clear** removes
 them. Autonomous driving treats placed cubes as sensed obstacles in addition
 to their MuJoCo collision geometry.
 
+### Sensors
+
+The top-right **Sensors** button toggles the complete sensor dashboard. Hiding
+the dashboard does not reset sensor readings, microphone permission or the
+individual visibility choices; showing it restores the previous state.
+
 A live **Robot POV** inset renders from MicroDuck's head so learners can
 compare its egocentric view with the normal third-person camera. The inset
-can be hidden and restored without changing robot control.
+can be hidden and restored without changing robot control. Its renderer is
+recreated when the sensor dashboard returns, so repeated hide/show cycles are
+safe.
 
 The opt-in **Microphone Sensor** exposes live input level, time-domain data,
 frequency data, the Web Audio analyser and the underlying `MediaStream` via
@@ -83,16 +111,29 @@ walls, props, the ball and placed cubes up to 2 m away. The HUD shows the
 numbers as a near-orange/far-blue grid, while extensions can consume the same
 data through `tofApi` or `window.__microduckTof`.
 
+The **NFC** panel models the two antennas found on the real robot: one in the
+head and one in the beak. Select **Place tag**, click the arena to add a tag,
+and move the duck very close to it. The panel reports the tag ID independently
+for each antenna and highlights a tag when read. Up to six tags can be placed;
+**Clear** removes them. Extensions can subscribe through `nfcApi` or
+`window.__microduckNfc`.
+
+The sensor adapters intentionally sit behind small publish/subscribe APIs.
+Simulator geometry currently supplies depth and NFC readings, but a real
+camera, ToF, NFC or microphone source can replace that input without rewriting
+the display or autonomous controller.
+
+The real MicroDuck hardware also includes two IMUs, motor-position feedback,
+a speaker, Wi-Fi, Bluetooth and an onboard AI accelerator. The ToF and NFC
+implementations here are educational simulations rather than hardware drivers.
+
 In roller mode the legs-only actions (kicks, sit) are disabled and their
 hints fade out; play the ball by driving into it.
 
 ### URL parameters
 
-- `?boot=1`: skip the welcome modal and land straight on the BIOS console,
-  which then shows the real loading progress live (honest loader) before
-  the normal entrance plays. Boot failures (missing asset, policy fetch
-  error...) freeze the console on a `SYSTEM HALTED` screen with the error
-  detail - handy for debugging.
+- `?boot=1`: skip the welcome screen and enter the simulator directly. This is
+  useful for local development and automated UI checks.
 
 The ball's physics are local to your tab, but its pose is broadcast with
 your duck's, so other visitors see a translucent copy of your ball next
@@ -178,8 +219,11 @@ git lfs pull      # fetch the actual binaries in an existing clone
 cd app
 npm install
 npm run dev     # dev server on http://localhost:5173
+npm test        # autonomous controller and keyboard-layout tests
 npm run build   # production bundle in app/dist/
 ```
+
+Open `http://localhost:5173/?boot=1` to jump directly into the simulator.
 
 The Space builds with the included `Dockerfile` (Vite build, served by
 nginx-unprivileged on port 8080). Static assets (meshes, policies, audio,
