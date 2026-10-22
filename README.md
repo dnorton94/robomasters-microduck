@@ -1,14 +1,3 @@
----
-title: Microduck Sandbox
-emoji: 🐤
-colorFrom: yellow
-colorTo: gray
-sdk: docker
-app_port: 8080
-pinned: false
-license: apache-2.0
----
-
 # RoboMasters MicroDuck Simulator
 
 An educational, browser-based MicroDuck simulator with manual control,
