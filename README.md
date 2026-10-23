@@ -22,6 +22,7 @@ behaviour.
 - Simulated head and beak NFC readers with placeable tags
 - Opt-in browser microphone input
 - One **Sensors** button that hides or restores every sensor display
+- An **Available Policies** panel for inspecting and triggering ONNX moves
 - Feet and roller locomotion using the existing ONNX policies
 
 Two locomotion variants of the same robot are included: **legs** (walking,
@@ -43,6 +44,13 @@ policies are lazy-loaded on the first switch.
 Policies and MJCF model from
 [pollen-robotics/microduck](https://github.com/pollen-robotics/microduck)
 and [pollen-robotics/microduck_rl](https://github.com/pollen-robotics/microduck_rl).
+
+Select **Policies** in the top-right corner to open the live policy browser.
+It shows each policy's friendly name and checkpoint, the active movement mode,
+and a **Trigger** button. Moves that do not apply to the current feet/rollers
+configuration are disabled. Triggering a policy is treated as an explicit
+manual command, so it safely stops autonomous steering first. Active community
+policies also appear in this list.
 
 ## Controls
 

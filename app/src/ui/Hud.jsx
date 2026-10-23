@@ -257,6 +257,90 @@ export function SensorsButton({ sx }) {
   );
 }
 
+function PoliciesButton() {
+  const visible = useGame((s) => s.policiesVisible);
+  return (
+    <HudPlate caption="Moves" captionSide="right"
+      sx={{ position: "fixed", top: "1.25rem", right: "9.2rem", zIndex: 10 }}>
+      <Box component="button" type="button" aria-pressed={visible}
+        aria-label={`${visible ? "Hide" : "Show"} available policies`}
+        onClick={() => { uiClick(); useGame.setState({ policiesVisible: !visible }); }}
+        sx={{ ...hudHitSx, background: visible ? ORANGE : "transparent",
+          color: visible ? COMIC_INK : CREAM }}>
+        Policies
+      </Box>
+    </HudPlate>
+  );
+}
+
+const OFFICIAL_POLICIES = [
+  { id: "walk", label: "Walk / Drive", checkpoint: "BEST_alpha_walking.onnx", loco: "both" },
+  { id: "sit", label: "Sit / Stand", checkpoint: "BEST_alpha_sitstand.onnx", loco: "legs" },
+  { id: "roll", label: "Roll & Recover", checkpoint: "roulade.onnx", loco: "legs" },
+  { id: "kickL", label: "Kick Left", checkpoint: "ball_kick_left.onnx", loco: "legs" },
+  { id: "kickR", label: "Kick Right", checkpoint: "ball_kick_right.onnx", loco: "legs" },
+  { id: "groundpick", label: "Ground Pick", checkpoint: "alpha_ground_pick.onnx", loco: "legs" },
+  { id: "crouch", label: "Crouch Glide", checkpoint: "BEST_roller_crouch.onnx", loco: "rollers" },
+];
+
+function PoliciesPanel() {
+  const visible = useGame((s) => s.policiesVisible);
+  const loco = useGame((s) => s.loco);
+  const active = useGame((s) => s.modeLabel);
+  const custom = useGame((s) => s.customPolicy);
+  if (!visible) return null;
+  const policies = custom?.status === "active"
+    ? [...OFFICIAL_POLICIES, { id: "custom", label: custom.title || custom.name,
+      checkpoint: `Community · ${custom.slot}`, loco: custom.slot === "walk" ? "legs" : "both" }]
+    : OFFICIAL_POLICIES;
+  return (
+    <Box role="dialog" aria-label="Available movement policies"
+      sx={{ position: "fixed", top: "5.2rem", right: "9.2rem", zIndex: 12, width: 330,
+        border: `3px solid ${CREAM}`, background: "rgba(8,8,12,.94)",
+        boxShadow: `4px 4px 0 ${COMIC_INK}`, p: 1 }}>
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: .7 }}>
+        <Box>
+          <Box sx={{ fontFamily: ANTON, color: ORANGE, letterSpacing: ".08em" }}>AVAILABLE POLICIES</Box>
+          <Box sx={{ fontFamily: MONO, color: "rgba(250,248,242,.5)", fontSize: ".52rem" }}>
+            {loco.toUpperCase()} · ACTIVE: {active.toUpperCase()}
+          </Box>
+        </Box>
+        <Box component="button" type="button" aria-label="Close policies"
+          onClick={() => useGame.setState({ policiesVisible: false })}
+          sx={{ border: 0, background: "transparent", color: CREAM, fontFamily: ANTON,
+            fontSize: "1rem", cursor: "pointer" }}>×</Box>
+      </Box>
+      <Box sx={{ display: "grid", gap: "4px", maxHeight: "calc(100vh - 9rem)", overflowY: "auto" }}>
+        {policies.map((policy) => {
+          const available = policy.loco === "both" || policy.loco === loco;
+          return (
+            <Box key={policy.id} sx={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 1,
+              alignItems: "center", border: "1px solid rgba(250,248,242,.18)", p: ".45rem .55rem",
+              opacity: available ? 1 : .38 }}>
+              <Box sx={{ minWidth: 0 }}>
+                <Box sx={{ fontFamily: ANTON, color: CREAM, fontSize: ".78rem", letterSpacing: ".04em" }}>
+                  {policy.label}
+                </Box>
+                <Box title={policy.checkpoint} sx={{ fontFamily: MONO, color: "rgba(250,248,242,.48)",
+                  fontSize: ".48rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {policy.checkpoint}
+                </Box>
+              </Box>
+              <Box component="button" type="button" disabled={!available}
+                onClick={() => { uiClick(); gameApi.triggerPolicy?.(policy.id); }}
+                sx={{ border: `1px solid ${ORANGE}`, background: "transparent", color: ORANGE,
+                  fontFamily: ANTON, fontSize: ".66rem", px: .8, py: .35,
+                  cursor: available ? "pointer" : "not-allowed" }}>
+                Trigger
+              </Box>
+            </Box>
+          );
+        })}
+      </Box>
+    </Box>
+  );
+}
+
 function Quickbar() {
   const variant = useGame((s) => s.variant);
   const locoWant = useGame((s) => s.locoWant);
@@ -652,6 +736,8 @@ export default function Hud() {
     <>
       <BackButton />
       <SensorsButton />
+      <PoliciesButton />
+      <PoliciesPanel />
       {!touchMode && (
         <>
           <Quickbar />

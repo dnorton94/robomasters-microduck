@@ -2371,6 +2371,31 @@ async function boot({ scene, camera, renderer }) {
       autonomousSource.stop();
       setStore({ autonomyEnabled: false, autonomyStatus: "Stopped" });
     },
+    triggerPolicy: (name) => {
+      // A direct policy choice is an explicit manual command. Stop the
+      // autonomous source first so it cannot resume steering after the
+      // selected one-shot hands control back to the walker.
+      autonomousSource.stop();
+      setStore({ autonomyEnabled: false, autonomyStatus: "Manual control" });
+      switch (name) {
+        case "walk": return setMode("walk");
+        case "sit": {
+          const sitting = mode === "sitstand" && sitFlag === 1;
+          return setMode(sitting ? "walk" : "sit");
+        }
+        case "roll": return triggerRoll("ui");
+        case "kickL": return triggerKick("left", "ui");
+        case "kickR": return triggerKick("right", "ui");
+        case "groundpick": return triggerGroundPick("ui");
+        case "crouch": return triggerCrouch("ui");
+        case "custom":
+          if (customPolicy?.slot === "trick") return triggerRoll("ui");
+          if (customPolicy?.slot === "script") return toggleScript();
+          if (customPolicy?.slot === "sitstand") return setMode("sit");
+          return setMode("walk");
+        default: return false;
+      }
+    },
     setObstaclePlacement: (enabled) => {
       obstaclePlacement = !!enabled;
       if (obstaclePlacement) { nfcPlacement = false; publishNfcState({ placing: false }); }
