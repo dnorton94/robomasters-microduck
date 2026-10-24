@@ -159,6 +159,11 @@ safe core is randomized. Each cube carries a locally generated diagnostic QR
 payload that can be observed through the fixed head camera and processed by a
 participant's bundled vision behaviour without internet access.
 
+Mission mode also shows a compact stage-code input immediately to the left of
+the **Mission** control. A previously earned code can be entered there to jump
+directly to its stage; entering `ACTIVATEDUCKMASTER` starts a fresh randomized
+Stage Two attempt.
+
 The autonomous behaviour reports a decoded observation with
 `emitAction("reportQr", { color, payload })`. The evaluator silently checks the
 exact payload, camera alignment and scan distance. All three cores must be

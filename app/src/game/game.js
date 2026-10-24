@@ -1530,8 +1530,7 @@ async function boot({ scene, camera, renderer }) {
     }));
   }
   function activateMissionStage(code) {
-    if (store().environmentMode !== "mission" || store().mission.stage !== 1 ||
-        store().mission.status !== "success" || !acceptsStageTwoCode(code)) return false;
+    if (store().environmentMode !== "mission" || !acceptsStageTwoCode(code)) return false;
     clearTimeout(redPlateTimer);
     clearTimeout(redPlateIdleTimer);
     redPlateAvailable = false;

@@ -25,6 +25,11 @@ const ACTION_KEYS = {
   KeyF: "alternateKick",
 };
 
+export const isTypingTarget = (target) => !!target && (
+  target.isContentEditable || target.tagName === "INPUT" || target.tagName === "TEXTAREA" ||
+  target.tagName === "SELECT"
+);
+
 export class KeyboardSource {
   id = "keyboard";
   connected = true; // a keyboard is always assumed present
@@ -49,6 +54,10 @@ export class KeyboardSource {
   init() {
     this.#onKeyDown = (e) => {
       if (e.repeat) return;
+      // HUD editors and mission-code fields own their keystrokes. Without
+      // this guard WASD letters are interpreted as locomotion and disappear
+      // from controlled React inputs.
+      if (isTypingTarget(e.target)) return;
       // Space always resets, and must not scroll the page.
       if (e.code === "Space") {
         e.preventDefault();

@@ -279,15 +279,33 @@ function PoliciesButton() {
 function EnvironmentButton() {
   const mode = useGame((s) => s.environmentMode);
   const mission = mode === "mission";
+  const [stageCode, setStageCode] = useState("");
+  const [codeError, setCodeError] = useState(false);
   const toggle = () => {
     const next = mission ? "testing" : "mission";
     uiClick();
     useGame.setState({ environmentMode: next, policiesVisible: false });
     gameApi.setEnvironmentMode?.(next);
   };
+  const jumpToStage = () => {
+    uiClick();
+    const accepted = gameApi.activateMissionStage?.(stageCode);
+    setCodeError(!accepted);
+    if (accepted) setStageCode("");
+  };
   return (
     <HudPlate caption="Area" captionSide="right"
       sx={{ position: "fixed", top: "1.25rem", right: "17.15rem", zIndex: 10 }}>
+      {mission && <Box component="input" aria-label="Mission stage code" value={stageCode}
+        onChange={(event) => { setStageCode(event.target.value); setCodeError(false); }}
+        onKeyDown={(event) => { if (event.key === "Enter") jumpToStage(); }}
+        placeholder="Stage code"
+        sx={{ width: 130, px: .8, border: 0, borderRight: `1px solid ${codeError ? "#ff5b52" : "rgba(250,248,242,.25)"}`,
+          outline: codeError ? "1px solid #ff5b52" : "none", outlineOffset: -1,
+          background: "rgba(0,0,0,.35)", color: CREAM, fontFamily: MONO, fontSize: ".58rem",
+          textTransform: "uppercase", "&::placeholder": { color: "rgba(250,248,242,.45)" } }} />}
+      {mission && <Box component="button" type="button" aria-label="Activate mission stage code"
+        onClick={jumpToStage} sx={{ ...hudHitSx, px: ".55rem", color: ORANGE }}>↵</Box>}
       <Box component="button" type="button" aria-pressed={mission}
         aria-label={`Switch to ${mission ? "Testing Bay" : "Mission"}`}
         onClick={toggle}
