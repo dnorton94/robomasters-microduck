@@ -13,7 +13,11 @@ test("red plate succeeds after qualifying and leaving inside the safety window",
 test("red plate rejects an early exit", () => {
   const mission = createRedPlateMission();
   mission.update({ onPlate: true, autonomous: true, nowMs: 0 });
-  assert.equal(mission.update({ onPlate: false, autonomous: true, nowMs: 2999 }).event, "early-exit");
+  const earlyExit = mission.update({ onPlate: false, autonomous: true, nowMs: 2999 });
+  assert.equal(earlyExit.event, "early-exit");
+  const reset = mission.reset();
+  assert.equal(reset.state.status, "ready");
+  assert.equal(reset.state.attempt, 2);
 });
 
 test("red plate fails at the containment deadline", () => {

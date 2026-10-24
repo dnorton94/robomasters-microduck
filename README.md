@@ -142,6 +142,11 @@ new HTTP, XHR, WebSocket, EventSource, beacon and WebRTC traffic until the user
 returns to the Testing Bay. The mission evaluator is isolated from the HUD and
 covered by boundary tests.
 
+Floor clicks and double-click waypoint navigation are ignored in Mission. An
+early plate exit removes the target, starts a fresh attempt and relocates it.
+The plate is also excluded from simulated ToF returns because it is flush with
+the floor rather than an obstacle.
+
 This browser build is an educational practice environment, not a secure exam
 client. A participant who controls a local source checkout can inspect or alter
 any client-side rule. Official results should therefore be validated by a

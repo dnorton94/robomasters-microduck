@@ -534,7 +534,8 @@ async function boot({ scene, camera, renderer }) {
       const qpos = data.qpos;
       return [qpos[0], qpos[1], duckYaw(qpos)];
     },
-    isSuppressed: () => inputLocked || headMode || mode !== "walk" || !!grab,
+    isSuppressed: () => store().environmentMode === "mission" || inputLocked ||
+      headMode || mode !== "walk" || !!grab,
     getManualOverride: () => padSource.isActive() || touchSource.isActive() || kbSource.isActive(),
   });
   const manualActive = () => store().environmentMode !== "mission" &&
@@ -1372,6 +1373,7 @@ async function boot({ scene, camera, renderer }) {
     color: 0xa71919, emissive: 0x360000, roughness: 0.78, metalness: 0,
   });
   const redPlate = new THREE.Group();
+  redPlate.userData.tofInvisible = true;
   const plateCellSize = RED_PLATE_SIZE / 6;
   const plateCellGeometry = new THREE.PlaneGeometry(plateCellSize * 0.92, plateCellSize * 0.92);
   for (let row = 0; row < 6; row++) {
@@ -1442,6 +1444,7 @@ async function boot({ scene, camera, renderer }) {
     redPlateAvailable = false;
     redPlate.visible = false;
     if (mission) {
+      waypointSource.cancel();
       obstaclePlacement = false;
       nfcPlacement = false;
       renderer.domElement.style.cursor = "";
@@ -1891,7 +1894,7 @@ async function boot({ scene, camera, renderer }) {
     if (now - grabHoverAt < 80) return;
     grabHoverAt = now;
     grabRayFrom(e);
-    const clickable = mode === "walk" && !headMode;
+    const clickable = store().environmentMode !== "mission" && mode === "walk" && !headMode;
     renderer.domElement.style.cursor = (cubePick() || grabPick()) ? "grab" : (clickable ? "crosshair" : "");
   });
   window.addEventListener("pointerup", endGrab);
@@ -1969,6 +1972,11 @@ async function boot({ scene, camera, renderer }) {
     ...Object.values(propGroups).flat(),
   ];
   let tofLastAt = -Infinity;
+  const isTofInvisible = (object) => {
+    for (let current = object; current; current = current.parent)
+      if (current.userData?.tofInvisible) return true;
+    return false;
+  };
 
   function updateTofSensor(now) {
     if (!tofApi.getState().enabled || now - tofLastAt < 100) return;
@@ -1992,7 +2000,7 @@ async function boot({ scene, camera, renderer }) {
         _tofNdc.set((col + 0.5) / 4 - 1, 1 - (row + 0.5) / 4);
         _tofRaycaster.setFromCamera(_tofNdc, _tofCamera);
         const hit = _tofRaycaster.intersectObjects(_tofTargets, true)
-          .find((item) => item.object.visible);
+          .find((item) => item.object.visible && !isTofInvisible(item.object));
         _tofFrame[row * 8 + col] = hit ? Math.round(hit.distance * 1000) / 1000 : null;
       }
     }
