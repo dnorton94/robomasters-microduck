@@ -17,8 +17,9 @@ const savedAutonomyProfiles = (() => {
   try {
     const saved = JSON.parse(localStorage.getItem("microduck-autonomy-profiles") ?? "[]");
     return Array.isArray(saved) ? saved.map((profile) => ({ ...profile,
-      behaviors: Array.isArray(profile.behaviors) ? profile.behaviors
-        : profile.base ? [{ id: `${profile.id}-behavior`, name: profile.name, base: profile.base }] : [],
+      behaviors: Array.isArray(profile.behaviors) ? profile.behaviors.map((item) => ({
+        ...item, behavior: item.behavior ?? item.base ?? "roam",
+      })) : profile.base ? [{ id: `${profile.id}-behavior`, name: profile.name, behavior: profile.base }] : [],
     })) : [];
   }
   catch { return []; }
@@ -52,7 +53,7 @@ export const useGame = create(
     touchMode: false,
     ballActive: false,
     autonomyEnabled: false,
-    autonomyMode: "roam", // "roam" | "chase"
+    autonomyMode: "roam", // registered autonomous behaviour id
     autonomyProfileId: null,
     autonomyBehaviorId: null,
     autonomyProfiles: Array.isArray(savedAutonomyProfiles) ? savedAutonomyProfiles : [],

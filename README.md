@@ -152,15 +152,26 @@ The plate is also excluded from simulated ToF returns because it is flush with
 the floor rather than an obstacle.
 
 Mission locks autonomous control on but does not replace its configuration. It
-runs whichever Roam or Chase controller the participant selected and developed
-in the Testing Bay, allowing those controller modules to be extended locally
-and tested before entering the mission.
+runs the registered code-backed behaviour selected in the Testing Bay. An agent
+can add a local controller (for example camera object detection) in
+`app/src/game/autonomy/custom-behaviors.js`; after registration it appears in
+the profile editor and receives world state, fixed sensor interfaces and the
+same command path as manual input. Mission networking remains unavailable, so
+vision or speech models must be bundled and run locally.
 
 Roam and Chase Ball are locked official controller templates. The **+** control
 first creates an empty named profile. Its settings button then opens the in-app
-editor where participants can add, rename, rebase or remove profile-specific
-behaviours and delete the profile itself. Profiles persist in browser storage,
-and the selected custom behaviour is carried into Mission.
+editor where participants can add, rename, associate or remove registered
+behaviours and delete the profile itself. Profiles persist only these
+associations in browser storage; executable behaviour remains in source code.
+The selected behaviour is carried into Mission.
+
+`app/src/game/hardware-spec.js` defines the fixed course hardware: one head
+camera, one 8×8 head ToF sensor, body/head IMUs, head/beak NFC antennas and one
+local microphone input. Participant behaviours may consume those devices but
+must not add or reconfigure hardware. Repository agent instructions document
+this educational boundary; as with mission rules, a locally controlled browser
+checkout cannot provide cryptographic enforcement.
 
 This browser build is an educational practice environment, not a secure exam
 client. A participant who controls a local source checkout can inspect or alter

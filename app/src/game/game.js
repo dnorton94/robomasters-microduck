@@ -52,11 +52,13 @@ import { WaypointSource } from "./controls/waypoint.js";
 import { PolicyPreviewSource } from "./controls/policy-preview.js";
 import { AutonomousSource } from "./autonomy/autonomous-source.js";
 import { createSimPerception } from "./autonomy/perception.js";
+import { hasAutonomousBehavior } from "./autonomy/behavior-registry.js";
 import { publishTofFrame, tofApi } from "./tof-sensor.js";
 import { publishNfcState, nfcApi } from "./nfc-sensor.js";
 import { publishImuState } from "./imu-sensor.js";
 import { createRedPlateMission, RED_PLATE_SIZE } from "./missions/red-plate.js";
 import { setMissionNetworkLock } from "./missions/network-lock.js";
+import { MICRODUCK_HARDWARE } from "./hardware-spec.js";
 import * as fx from "./fx/fx-wireframe.js";
 import { createWaypointMarker } from "./fx/waypoint-marker.js";
 import { createCeremony, CAM_RESET_S } from "./ceremony.js";
@@ -550,6 +552,14 @@ async function boot({ scene, camera, renderer }) {
   const autonomousSource = new AutonomousSource({
     perception,
     getVelocityLimits: () => velLims(),
+    getSensors: () => ({
+      hardware: MICRODUCK_HARDWARE,
+      camera: { render: (viewRenderer, viewCamera) => gameApi.renderPov?.(viewRenderer, viewCamera) },
+      tof: tofApi.getState(),
+      nfc: nfcApi.getState(),
+      imu: store().imu,
+      microphone: store().microphone,
+    }),
     manualActive,
     onStatus: (autonomyStatus) => setStore({ autonomyStatus }),
   });
@@ -2627,7 +2637,7 @@ async function boot({ scene, camera, renderer }) {
     },
     resetSim,
     setAutonomy: ({ enabled, mode, profileId = null, behaviorId = null } = {}) => {
-      const nextMode = mode === "chase" ? "chase" : "roam";
+      const nextMode = hasAutonomousBehavior(mode) ? mode : "roam";
       const nextEnabled = store().environmentMode === "mission" ? true : !!enabled;
       autonomousSource.configure({ enabled: nextEnabled, mode: nextMode });
       waypointSource.cancel();

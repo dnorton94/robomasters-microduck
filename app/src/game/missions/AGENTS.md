@@ -9,3 +9,7 @@ when the evaluator tests continue to pass unchanged.
 Rule changes require an explicit request from the repository owner or course
 maintainer. This instruction supports lesson integrity; it is not a security
 boundary for a locally controlled checkout.
+
+The simulated hardware contract in `../hardware-spec.js` is also course-owned.
+Participant autonomy may read its sensor interfaces but must not change the
+device inventory, mounts, geometry, range, or resolution.

@@ -1,4 +1,5 @@
 import { relativeTarget, wrapAngle } from "./perception.js";
+import { getCustomAutonomousBehavior } from "./behavior-registry.js";
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
@@ -12,6 +13,7 @@ export class AutonomousSource {
 
   #perception;
   #getVelocityLimits;
+  #getSensors;
   #manualActive;
   #enabled = false;
   #mode = "roam";
@@ -24,10 +26,12 @@ export class AutonomousSource {
   #recoverSign = 1;
   #kickCooldown = 0;
   #wasTrying = false;
+  #customController = null;
 
-  constructor({ perception, getVelocityLimits, manualActive, onStatus = () => {} }) {
+  constructor({ perception, getVelocityLimits, getSensors = () => ({}), manualActive, onStatus = () => {} }) {
     this.#perception = perception;
     this.#getVelocityLimits = getVelocityLimits;
+    this.#getSensors = getSensors;
     this.#manualActive = manualActive;
     this.#onStatus = onStatus;
   }
@@ -40,7 +44,9 @@ export class AutonomousSource {
 
   configure({ enabled = this.#enabled, mode = this.#mode } = {}) {
     this.#enabled = !!enabled;
-    this.#mode = mode === "chase" ? "chase" : "roam";
+    const custom = getCustomAutonomousBehavior(mode);
+    this.#mode = custom ? mode : mode === "chase" ? "chase" : "roam";
+    this.#customController = custom?.create?.() ?? null;
     this.#goal = null;
     this.#stillFor = 0;
     this.#recoverFor = 0;
@@ -60,6 +66,14 @@ export class AutonomousSource {
     }
     const world = this.#perception.sample();
     if (!world?.robot) { this.#setStatus("Waiting for pose"); return; }
+    if (this.#customController) {
+      const limits = this.#getVelocityLimits();
+      this.#customController.step?.({ world, sensors: this.#getSensors(), command: this.command, limits, dt,
+        setStatus: (value) => this.#setStatus(value),
+        emitAction: (action, meta = {}) => this.onAction(action, { ...meta, autonomous: true }) });
+      this.#wasTrying = Math.abs(this.command[0]) > 0.04 || Math.abs(this.command[2]) > 0.15;
+      return;
+    }
     this.#kickCooldown = Math.max(0, this.#kickCooldown - dt);
     this.#updateStuck(world.robot, dt);
     if (this.#recoverFor > 0) this.#recover(world, dt);

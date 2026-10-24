@@ -22,6 +22,7 @@ import { VARIANT_LABELS, VARIANT_SWATCH_HEX } from "../game/variants.js";
 import { uiClick, isMuted, setMuted } from "../game/audio.js";
 import { ORANGE, MONO } from "../theme.js";
 import { ANTON, COMIC_INK, CREAM } from "./comic.jsx";
+import { listAutonomousBehaviors } from "../game/autonomy/behavior-registry.js";
 
 const recBlink = keyframes`
   0%, 58% { opacity: 1; }
@@ -517,6 +518,7 @@ function ObstaclePanel() {
 }
 
 function AutonomyPanel() {
+  const behaviorCatalog = listAutonomousBehaviors();
   const mission = useGame((s) => s.environmentMode === "mission");
   const enabled = useGame((s) => s.autonomyEnabled);
   const mode = useGame((s) => s.autonomyMode);
@@ -555,7 +557,7 @@ function AutonomyPanel() {
       persistProfiles(next);
       if (profileId === saved.id) {
         const active = saved.behaviors.find((item) => item.id === behaviorId);
-        if (active) set(true, active.base, saved.id, active.id);
+        if (active) set(true, active.behavior, saved.id, active.id);
         else set(true, "roam", null, null);
       }
     }
@@ -569,7 +571,7 @@ function AutonomyPanel() {
     setEditor(null);
   };
   const addBehavior = () => setEditor((current) => ({ ...current, behaviors: [...current.behaviors,
-    { id: crypto.randomUUID?.() ?? String(Date.now()), name: "New behaviour", base: "roam" }] }));
+    { id: crypto.randomUUID?.() ?? String(Date.now()), name: "New behaviour", behavior: "roam" }] }));
   return (
     <><HudPlate caption="Pilot">
       <Box sx={{ display: "inline-flex", alignItems: "stretch", height: "100%" }}>
@@ -596,21 +598,12 @@ function AutonomyPanel() {
             <Box component="button" type="button" disabled={!profile.behaviors.length}
               aria-pressed={profileId === profile.id}
               onClick={() => { const behavior = profile.behaviors[0];
-                set(true, behavior.base, profile.id, behavior.id); }} title={profile.name}
+                set(true, behavior.behavior, profile.id, behavior.id); }} title={profile.name}
               sx={{ ...hudHitSx, px: ".55rem", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis",
                 opacity: profile.behaviors.length ? 1 : .4,
                 color: profileId === profile.id ? ORANGE : "rgba(250,248,242,.65)" }}>
               {profile.name}
             </Box>
-            {profileId === profile.id && profile.behaviors.map((behavior) =>
-              <Box key={behavior.id} component="button" type="button"
-                aria-pressed={behaviorId === behavior.id}
-                onClick={() => set(true, behavior.base, profile.id, behavior.id)}
-                title={`${behavior.name} · ${behavior.base}`}
-                sx={{ ...hudHitSx, px: ".45rem", maxWidth: 100, overflow: "hidden",
-                  textOverflow: "ellipsis", color: behaviorId === behavior.id ? ORANGE : CREAM }}>
-                {behavior.name}
-              </Box>)}
             <Box component="button" type="button" aria-label={`Edit ${profile.name}`} onClick={() => openProfile(profile)}
               sx={{ ...hudHitSx, px: ".4rem", color: CREAM }}>⚙</Box>
           </Box>
@@ -649,11 +642,11 @@ function AutonomyPanel() {
               onChange={(event) => setEditor({ ...editor, behaviors: editor.behaviors.map((item) =>
                 item.id === behavior.id ? { ...item, name: event.target.value } : item) })}
               sx={{ p: .6, border: "1px solid #555", background: "#111", color: CREAM, fontFamily: MONO }} />
-            <Box component="select" aria-label={`Behaviour ${index + 1} template`} value={behavior.base}
+            <Box component="select" aria-label={`Behaviour ${index + 1} code`} value={behavior.behavior}
               onChange={(event) => setEditor({ ...editor, behaviors: editor.behaviors.map((item) =>
-                item.id === behavior.id ? { ...item, base: event.target.value } : item) })}
+                item.id === behavior.id ? { ...item, behavior: event.target.value } : item) })}
               sx={{ background: "#111", color: CREAM, border: "1px solid #555", fontFamily: MONO }}>
-              <option value="roam">ROAM</option><option value="chase">CHASE BALL</option>
+              {behaviorCatalog.map((item) => <option key={item.id} value={item.id}>{item.label.toUpperCase()}</option>)}
             </Box>
             <Box component="button" type="button" aria-label={`Delete behaviour ${behavior.name}`}
               onClick={() => setEditor({ ...editor, behaviors: editor.behaviors.filter((item) => item.id !== behavior.id) })}
