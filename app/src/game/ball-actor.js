@@ -51,6 +51,15 @@ export function createBallActor({ THREE, scene, camera, renderer, fxModule, mesh
     pendingSpawn = true;
   }
 
+  function hideImmediately({ parkPhysics }) {
+    pendingSpawn = false;
+    visual = "hidden";
+    ghost = null;
+    mesh.visible = false;
+    fx.restore();
+    parkPhysics();
+  }
+
   function poseFromQpos(qpos, adr) {
     mesh.position.set(qpos[adr], qpos[adr + 1], qpos[adr + 2]);
     mesh.quaternion.set(qpos[adr + 4], qpos[adr + 5], qpos[adr + 6], qpos[adr + 3]);
@@ -93,6 +102,7 @@ export function createBallActor({ THREE, scene, camera, renderer, fxModule, mesh
   return {
     appear,
     despawn,
+    hideImmediately,
     queueRespawn,
     poseFromQpos,
     sync,

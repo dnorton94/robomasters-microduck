@@ -136,8 +136,11 @@ too early resets the attempt, and a containment failure or completion offers a
 stage retry. The target is a flush 6-by-6 patch of floor cells that disappears
 and relocates after five unattended seconds or between attempts. Mission mode
 locks control to autonomy and disables policy triggering, cube placement and
-tag placement. The mission evaluator is isolated from the HUD and covered by
-boundary tests.
+tag placement. The ball and the Testing Bay's Roam/Chase selector are removed
+for the mission. Mission entry also closes live browser connections and blocks
+new HTTP, XHR, WebSocket, EventSource, beacon and WebRTC traffic until the user
+returns to the Testing Bay. The mission evaluator is isolated from the HUD and
+covered by boundary tests.
 
 This browser build is an educational practice environment, not a secure exam
 client. A participant who controls a local source checkout can inspect or alter

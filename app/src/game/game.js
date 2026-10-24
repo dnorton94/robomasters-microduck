@@ -56,6 +56,7 @@ import { publishTofFrame, tofApi } from "./tof-sensor.js";
 import { publishNfcState, nfcApi } from "./nfc-sensor.js";
 import { publishImuState } from "./imu-sensor.js";
 import { createRedPlateMission, RED_PLATE_SIZE } from "./missions/red-plate.js";
+import { setMissionNetworkLock } from "./missions/network-lock.js";
 import * as fx from "./fx/fx-wireframe.js";
 import { createWaypointMarker } from "./fx/waypoint-marker.js";
 import { createCeremony, CAM_RESET_S } from "./ceremony.js";
@@ -839,6 +840,7 @@ async function boot({ scene, camera, renderer }) {
   // peel it away first (reverse scan) and pop the new one when that
   // finishes - same appear/disappear pair as the duck's wireframe ceremony.
   function spawnBall(opts = {}) {
+    if (store().environmentMode === "mission") return;
     if (inputLocked && !opts.fromQueue) return;
     if (!ball) return;
     if (ball.visual !== "hidden") {
@@ -1424,6 +1426,7 @@ async function boot({ scene, camera, renderer }) {
   }
   function setEnvironmentMode(mode) {
     const mission = mode === "mission";
+    setMissionNetworkLock(mission);
     const cell = mission ? 0x405568 : 0x8e8371;
     const section = mission ? 0x35e6c4 : 0xffb366;
     scene.background.setHex(mission ? 0x03080e : 0x08080c);
@@ -1443,9 +1446,14 @@ async function boot({ scene, camera, renderer }) {
       nfcPlacement = false;
       renderer.domElement.style.cursor = "";
       publishNfcState({ placing: false });
-      autonomousSource.configure({ enabled: true, mode: store().autonomyMode });
-      setStore({ autonomyEnabled: true, policiesVisible: false, obstaclePlacement: false });
+      ball?.hideImmediately({ parkPhysics: parkBallPhysics });
+      ballActive = false;
+      autonomousSource.configure({ enabled: true, mode: "roam" });
+      setStore({ autonomyEnabled: true, autonomyMode: "roam", policiesVisible: false,
+        obstaclePlacement: false, ballActive: false });
       relocateRedPlate({ delay: 0, increment: false });
+    } else if (ball && !ballActive) {
+      spawnBall({ fromQueue: true });
     }
   }
   const obstacleMaterial = new THREE.MeshStandardMaterial({

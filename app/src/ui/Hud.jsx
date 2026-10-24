@@ -535,9 +535,9 @@ function AutonomyPanel() {
           sx={{ ...hudHitSx, px: "0.75rem", color: enabled ? COMIC_INK : CREAM,
             background: enabled ? ORANGE : "transparent" }}
         >
-          {mission ? "Autonomous" : enabled ? "Autonomous" : "Manual"}
+          {mission ? "Autonomous Mission" : enabled ? "Autonomous" : "Manual"}
         </Box>
-        {enabled && [
+        {enabled && !mission && [
           ["roam", "Roam"], ["chase", "Chase ball"],
         ].map(([value, label]) => (
           <Box key={value} component="button" type="button" aria-pressed={mode === value}
@@ -546,9 +546,9 @@ function AutonomyPanel() {
             {label}
           </Box>
         ))}
-        <Box sx={{ ...hudHitSx, cursor: "default", px: "0.7rem", minWidth: "8rem", color: "rgba(250,248,242,.72)", fontFamily: MONO, fontSize: "0.58rem" }}>
+        {!mission && <Box sx={{ ...hudHitSx, cursor: "default", px: "0.7rem", minWidth: "8rem", color: "rgba(250,248,242,.72)", fontFamily: MONO, fontSize: "0.58rem" }}>
           {status}
-        </Box>
+        </Box>}
         {!mission && <Box component="button" type="button" aria-label="Stop autonomous control"
           onClick={() => { uiClick(); gameApi.stopAutonomy?.(); }}
           sx={{ ...hudHitSx, px: "0.7rem", background: "#d83b32", color: CREAM }}>

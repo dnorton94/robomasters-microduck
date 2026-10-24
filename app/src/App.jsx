@@ -17,6 +17,9 @@ import NfcPanel from "./ui/NfcPanel.jsx";
 import ImuPanel from "./ui/ImuPanel.jsx";
 import MissionPanel from "./ui/MissionPanel.jsx";
 import { useGame } from "./store.js";
+import { installMissionNetworkLock } from "./game/missions/network-lock.js";
+
+installMissionNetworkLock();
 
 export default function App() {
   useEffect(() => {
