@@ -22,6 +22,7 @@
 //     flow back in through gameApi.
 
 import * as THREE from "three";
+import QRCode from "qrcode";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { signed } from "./signed.js";
@@ -57,6 +58,7 @@ import { publishTofFrame, tofApi } from "./tof-sensor.js";
 import { publishNfcState, nfcApi } from "./nfc-sensor.js";
 import { publishImuState } from "./imu-sensor.js";
 import { createRedPlateMission, RED_PLATE_SIZE } from "./missions/red-plate.js";
+import { acceptsStageTwoCode, STAGE_TWO_CUBES } from "./missions/stage-two.js";
 import { setMissionNetworkLock } from "./missions/network-lock.js";
 import { MICRODUCK_HARDWARE } from "./hardware-spec.js";
 import * as fx from "./fx/fx-wireframe.js";
@@ -1454,6 +1456,9 @@ async function boot({ scene, camera, renderer }) {
     redPlateAvailable = false;
     redPlate.visible = false;
     if (mission) {
+      if (store().mission.stage === 2) clearObstacles();
+      stageTwoDecals.forEach((decal) => { decal.visible = false; });
+      obstacleMeshes.slice(0, 3).forEach((mesh) => { mesh.material = obstacleMaterial; });
       waypointSource.cancel();
       obstaclePlacement = false;
       nfcPlacement = false;
@@ -1468,8 +1473,11 @@ async function boot({ scene, camera, renderer }) {
       setStore({ autonomyEnabled: true, policiesVisible: false,
         obstaclePlacement: false, ballActive: false });
       relocateRedPlate({ delay: 0, increment: false });
-    } else if (ball && !ballActive) {
-      spawnBall({ fromQueue: true });
+    } else {
+      if (store().mission.stage === 2) clearObstacles();
+      stageTwoDecals.forEach((decal) => { decal.visible = false; });
+      obstacleMeshes.slice(0, 3).forEach((mesh) => { mesh.material = obstacleMaterial; });
+      if (ball && !ballActive) spawnBall({ fromQueue: true });
     }
   }
   const obstacleMaterial = new THREE.MeshStandardMaterial({
@@ -1487,6 +1495,56 @@ async function boot({ scene, camera, renderer }) {
     return mesh;
   });
   syncObstaclesToPhysics();
+
+  const stageTwoDecals = [];
+  let stageTwoPrepared = false;
+  async function prepareStageTwoCubes() {
+    if (stageTwoPrepared) return;
+    stageTwoPrepared = true;
+    await Promise.all(STAGE_TWO_CUBES.map(async (cube, index) => {
+      const mesh = obstacleMeshes[index];
+      mesh.material = new THREE.MeshStandardMaterial({
+        color: cube.color, roughness: 0.68, metalness: 0.04,
+      });
+      const canvas = document.createElement("canvas");
+      await QRCode.toCanvas(canvas, cube.payload, {
+        width: 256, margin: 2, errorCorrectionLevel: "H",
+        color: { dark: "#050505", light: "#ffffff" },
+      });
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      const decal = new THREE.Mesh(
+        new THREE.PlaneGeometry(OBSTACLE_SIZE * 0.72, OBSTACLE_SIZE * 0.72),
+        new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide }),
+      );
+      decal.name = `stage-two-qr-${cube.name.toLowerCase()}`;
+      decal.position.set(0, 0, OBSTACLE_SIZE / 2 + 0.002);
+      mesh.add(decal);
+      stageTwoDecals.push(decal);
+    }));
+  }
+  function activateMissionStage(code) {
+    if (store().environmentMode !== "mission" || store().mission.stage !== 1 ||
+        store().mission.status !== "success" || !acceptsStageTwoCode(code)) return false;
+    clearTimeout(redPlateTimer);
+    clearTimeout(redPlateIdleTimer);
+    redPlateAvailable = false;
+    redPlate.visible = false;
+    clearNfcTags();
+    obstaclePositions.fill(null);
+    STAGE_TWO_CUBES.forEach((cube, index) => { obstaclePositions[index] = { x: cube.x, y: cube.y }; });
+    obstacleMeshes.slice(0, 3).forEach((mesh, index) => {
+      mesh.material = new THREE.MeshStandardMaterial({
+        color: STAGE_TWO_CUBES[index].color, roughness: 0.68, metalness: 0.04,
+      });
+    });
+    stageTwoDecals.forEach((decal) => { decal.visible = true; });
+    syncObstaclesToPhysics();
+    setStore({ obstacleCount: 3, mission: { stage: 2, status: "active",
+      feedback: "THREE CORE SIGNALS DETECTED", attempt: 1 } });
+    prepareStageTwoCubes().catch((error) => console.warn("Stage Two QR preparation failed", error));
+    return true;
+  }
 
   let rig = await rigPromise;
   scene.add(rig.placer);
@@ -2698,7 +2756,8 @@ async function boot({ scene, camera, renderer }) {
     clearNfcTags,
     updateNfcTag,
     setEnvironmentMode,
-    resetMission: () => relocateRedPlate(),
+    resetMission: () => store().mission.stage === 1 && relocateRedPlate(),
+    activateMissionStage,
     renderPov: (viewRenderer, viewCamera) => {
       // In kinematics.json, body `jaw_soft` carries joint `head_roll` and
       // therefore owns the MJCF head_camera frame.
