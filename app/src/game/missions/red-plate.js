@@ -1,7 +1,7 @@
 const QUALIFY_MS = 3000;
 const FAILURE_MS = 5000;
 
-export const RED_PLATE_POSITION = Object.freeze({ x: 0.35, y: 0, radius: 0.24 });
+export const RED_PLATE_SIZE = 0.6;
 
 export function createRedPlateMission() {
   let enteredAt = null;

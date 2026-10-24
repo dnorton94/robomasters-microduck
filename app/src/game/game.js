@@ -55,7 +55,7 @@ import { createSimPerception } from "./autonomy/perception.js";
 import { publishTofFrame, tofApi } from "./tof-sensor.js";
 import { publishNfcState, nfcApi } from "./nfc-sensor.js";
 import { publishImuState } from "./imu-sensor.js";
-import { createRedPlateMission, RED_PLATE_POSITION } from "./missions/red-plate.js";
+import { createRedPlateMission, RED_PLATE_SIZE } from "./missions/red-plate.js";
 import * as fx from "./fx/fx-wireframe.js";
 import { createWaypointMarker } from "./fx/waypoint-marker.js";
 import { createCeremony, CAM_RESET_S } from "./ceremony.js";
@@ -1363,13 +1363,29 @@ async function boot({ scene, camera, renderer }) {
   for (const m of wallMeshes) scene.add(m);
   const redPlateMission = createRedPlateMission();
   const redPlateMaterial = new THREE.MeshStandardMaterial({
-    color: 0xa71919, emissive: 0x360000, roughness: 0.45, metalness: 0.25,
+    color: 0xa71919, emissive: 0x360000, roughness: 0.78, metalness: 0,
   });
-  const redPlate = new THREE.Mesh(new THREE.CylinderGeometry(RED_PLATE_POSITION.radius,
-    RED_PLATE_POSITION.radius, 0.018, 48), redPlateMaterial);
-  redPlate.position.set(RED_PLATE_POSITION.x, 0.009, -RED_PLATE_POSITION.y);
+  const redPlate = new THREE.Group();
+  const plateCellSize = RED_PLATE_SIZE / 6;
+  const plateCellGeometry = new THREE.PlaneGeometry(plateCellSize * 0.92, plateCellSize * 0.92);
+  for (let row = 0; row < 6; row++) {
+    for (let col = 0; col < 6; col++) {
+      const cell = new THREE.Mesh(plateCellGeometry, redPlateMaterial);
+      cell.rotation.x = -Math.PI / 2;
+      cell.position.set((col - 2.5) * plateCellSize, 0, (row - 2.5) * plateCellSize);
+      cell.receiveShadow = true;
+      redPlate.add(cell);
+    }
+  }
+  const redPlateLocations = [
+    { x: 0.3, y: 0 }, { x: -0.9, y: 0.6 }, { x: 0.3, y: -0.6 }, { x: 0.9, y: 0.6 },
+  ];
+  let redPlateLocationIndex = -1;
+  let redPlatePosition = redPlateLocations[0];
+  let redPlateAvailable = false;
+  let redPlateTimer = null;
+  redPlate.position.y = 0.003;
   redPlate.visible = false;
-  redPlate.receiveShadow = true;
   scene.add(redPlate);
   const publishMission = (result) => {
     if (!result.changed) return;
@@ -1381,6 +1397,21 @@ async function boot({ scene, camera, renderer }) {
     redPlateMaterial.emissive.setHex(armed ? 0x075936 : active ? 0x8c1700 : failed ? 0xff0000 : 0x360000);
     redPlateMaterial.emissiveIntensity = failed ? 2.5 : active ? 1.5 : 1;
   };
+  function relocateRedPlate({ delay = 850, increment = true } = {}) {
+    clearTimeout(redPlateTimer);
+    redPlateAvailable = false;
+    redPlate.visible = false;
+    setStore({ mission: { stage: 1, status: "relocating",
+      feedback: "PLATE SIGNAL LOST · SCANNING FLOOR", attempt: store().mission.attempt } });
+    redPlateTimer = setTimeout(() => {
+      redPlateLocationIndex = (redPlateLocationIndex + 1) % redPlateLocations.length;
+      redPlatePosition = redPlateLocations[redPlateLocationIndex];
+      redPlate.position.set(redPlatePosition.x, 0.003, -redPlatePosition.y);
+      redPlateAvailable = true;
+      redPlate.visible = store().environmentMode === "mission";
+      publishMission(redPlateMission.reset({ increment }));
+    }, delay);
+  }
   function setEnvironmentMode(mode) {
     const mission = mode === "mission";
     const cell = mission ? 0x405568 : 0x8e8371;
@@ -1393,8 +1424,10 @@ async function boot({ scene, camera, renderer }) {
       material.uniforms.uCellColor.value.setHex(cell);
       material.uniforms.uSectionColor.value.setHex(section);
     }
-    redPlate.visible = mission;
-    if (mission) publishMission(redPlateMission.reset({ increment: false }));
+    clearTimeout(redPlateTimer);
+    redPlateAvailable = false;
+    redPlate.visible = false;
+    if (mission) relocateRedPlate({ delay: 0, increment: false });
   }
   const obstacleMaterial = new THREE.MeshStandardMaterial({
     color: 0xff7a2f, roughness: 0.72, metalness: 0.05,
@@ -2007,15 +2040,17 @@ async function boot({ scene, camera, renderer }) {
     } }, now);
   }
   function updateMission(now) {
-    if (store().environmentMode !== "mission") return;
-    const dx = data.qpos[0] - RED_PLATE_POSITION.x;
-    const dy = data.qpos[1] - RED_PLATE_POSITION.y;
-    const onPlate = Math.hypot(dx, dy) <= RED_PLATE_POSITION.radius && data.qpos[2] > 0.11;
-    publishMission(redPlateMission.update({
+    if (store().environmentMode !== "mission" || !redPlateAvailable) return;
+    const half = RED_PLATE_SIZE / 2;
+    const onPlate = Math.abs(data.qpos[0] - redPlatePosition.x) <= half &&
+      Math.abs(data.qpos[1] - redPlatePosition.y) <= half && data.qpos[2] > 0.11;
+    const result = redPlateMission.update({
       onPlate,
       autonomous: store().autonomyEnabled,
       nowMs: now,
-    }));
+    });
+    publishMission(result);
+    if (result.event === "early-exit" || result.event === "manual") relocateRedPlate();
   }
   function syncRig() {
     const qpos = data.qpos;
@@ -2604,7 +2639,7 @@ async function boot({ scene, camera, renderer }) {
     clearNfcTags,
     updateNfcTag,
     setEnvironmentMode,
-    resetMission: () => publishMission(redPlateMission.reset()),
+    resetMission: () => relocateRedPlate(),
     renderPov: (viewRenderer, viewCamera) => {
       // In kinematics.json, body `jaw_soft` carries joint `head_roll` and
       // therefore owns the MJCF head_camera frame.

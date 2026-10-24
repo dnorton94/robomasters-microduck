@@ -133,8 +133,9 @@ The duck must solve the plate's hidden timing protocol using autonomous control;
 the mission panel and plate lighting provide experimental feedback without
 publishing the thresholds in the interface. Manual entry is rejected, leaving
 too early resets the attempt, and a containment failure or completion offers a
-stage retry. The mission evaluator is isolated from the HUD and covered by
-boundary tests.
+stage retry. The target is a flush 6-by-6 patch of floor cells that disappears
+and relocates between attempts. The mission evaluator is isolated from the HUD
+and covered by boundary tests.
 
 This browser build is an educational practice environment, not a secure exam
 client. A participant who controls a local source checkout can inspect or alter
