@@ -134,8 +134,10 @@ the mission panel and plate lighting provide experimental feedback without
 publishing the thresholds in the interface. Manual entry is rejected, leaving
 too early resets the attempt, and a containment failure or completion offers a
 stage retry. The target is a flush 6-by-6 patch of floor cells that disappears
-and relocates between attempts. The mission evaluator is isolated from the HUD
-and covered by boundary tests.
+and relocates after five unattended seconds or between attempts. Mission mode
+locks control to autonomy and disables policy triggering, cube placement and
+tag placement. The mission evaluator is isolated from the HUD and covered by
+boundary tests.
 
 This browser build is an educational practice environment, not a secure exam
 client. A participant who controls a local source checkout can inspect or alter

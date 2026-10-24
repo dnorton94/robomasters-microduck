@@ -536,7 +536,8 @@ async function boot({ scene, camera, renderer }) {
     isSuppressed: () => inputLocked || headMode || mode !== "walk" || !!grab,
     getManualOverride: () => padSource.isActive() || touchSource.isActive() || kbSource.isActive(),
   });
-  const manualActive = () => padSource.isActive() || touchSource.isActive() || kbSource.isActive();
+  const manualActive = () => store().environmentMode !== "mission" &&
+    (padSource.isActive() || touchSource.isActive() || kbSource.isActive());
   const perception = createSimPerception({
     getRobotPose: () => ({ x: data.qpos[0], y: data.qpos[1], yaw: duckYaw(data.qpos) }),
     getBallPose: () => ballActive
@@ -691,6 +692,9 @@ async function boot({ scene, camera, renderer }) {
     if (inputLocked || headMode || mode === "roll" || mode === "crouch" ||
         mode === "groundpick" || isKick() || postKickLock > 0 || recovery)
       return ZERO_CMD;
+    // Mission runs are autonomous-only. Physical movement sources remain
+    // available in the testing bay but cannot take command authority here.
+    if (store().environmentMode === "mission") return autonomousSource.command;
     return controller.getCommand();
   }
   let rollRun = null;
@@ -1384,6 +1388,7 @@ async function boot({ scene, camera, renderer }) {
   let redPlatePosition = redPlateLocations[0];
   let redPlateAvailable = false;
   let redPlateTimer = null;
+  let redPlateIdleTimer = null;
   redPlate.position.y = 0.003;
   redPlate.visible = false;
   scene.add(redPlate);
@@ -1399,6 +1404,7 @@ async function boot({ scene, camera, renderer }) {
   };
   function relocateRedPlate({ delay = 850, increment = true } = {}) {
     clearTimeout(redPlateTimer);
+    clearTimeout(redPlateIdleTimer);
     redPlateAvailable = false;
     redPlate.visible = false;
     setStore({ mission: { stage: 1, status: "relocating",
@@ -1410,6 +1416,10 @@ async function boot({ scene, camera, renderer }) {
       redPlateAvailable = true;
       redPlate.visible = store().environmentMode === "mission";
       publishMission(redPlateMission.reset({ increment }));
+      redPlateIdleTimer = setTimeout(() => {
+        if (store().environmentMode === "mission" && redPlateAvailable)
+          relocateRedPlate();
+      }, 5000);
     }, delay);
   }
   function setEnvironmentMode(mode) {
@@ -1425,9 +1435,18 @@ async function boot({ scene, camera, renderer }) {
       material.uniforms.uSectionColor.value.setHex(section);
     }
     clearTimeout(redPlateTimer);
+    clearTimeout(redPlateIdleTimer);
     redPlateAvailable = false;
     redPlate.visible = false;
-    if (mission) relocateRedPlate({ delay: 0, increment: false });
+    if (mission) {
+      obstaclePlacement = false;
+      nfcPlacement = false;
+      renderer.domElement.style.cursor = "";
+      publishNfcState({ placing: false });
+      autonomousSource.configure({ enabled: true, mode: store().autonomyMode });
+      setStore({ autonomyEnabled: true, policiesVisible: false, obstaclePlacement: false });
+      relocateRedPlate({ delay: 0, increment: false });
+    }
   }
   const obstacleMaterial = new THREE.MeshStandardMaterial({
     color: 0xff7a2f, roughness: 0.72, metalness: 0.05,
@@ -2044,6 +2063,7 @@ async function boot({ scene, camera, renderer }) {
     const half = RED_PLATE_SIZE / 2;
     const onPlate = Math.abs(data.qpos[0] - redPlatePosition.x) <= half &&
       Math.abs(data.qpos[1] - redPlatePosition.y) <= half && data.qpos[2] > 0.11;
+    if (onPlate) clearTimeout(redPlateIdleTimer);
     const result = redPlateMission.update({
       onPlate,
       autonomous: store().autonomyEnabled,
@@ -2374,22 +2394,25 @@ async function boot({ scene, camera, renderer }) {
 
   controller.on("reset", () => resetSim());
   controller.on("reset", () => waypointSource.cancel());
-  controller.on("spawnBall", () => spawnBall());
+  const testingBayAction = (action) => (...args) => {
+    if (store().environmentMode !== "mission") action(...args);
+  };
+  controller.on("spawnBall", testingBayAction(() => spawnBall()));
   controller.on("headToggle", () => toggleHeadMode());
   controller.on("chaseToggle", () => { chaseCam = !chaseCam; });
-  controller.on("locoToggle", () => toggleLoco());
-  controller.on("roll", ({ source }) => triggerRoll(srcTag(source)));
-  controller.on("groundPick", ({ source }) => triggerGroundPick(srcTag(source)));
-  controller.on("kickL", ({ source }) => triggerKick("left", srcTag(source)));
-  controller.on("kickR", ({ source }) => triggerKick("right", srcTag(source)));
-  controller.on("alternateKick", ({ source }) => {
+  controller.on("locoToggle", testingBayAction(() => toggleLoco()));
+  controller.on("roll", testingBayAction(({ source }) => triggerRoll(srcTag(source))));
+  controller.on("groundPick", testingBayAction(({ source }) => triggerGroundPick(srcTag(source))));
+  controller.on("kickL", testingBayAction(({ source }) => triggerKick("left", srcTag(source))));
+  controller.on("kickR", testingBayAction(({ source }) => triggerKick("right", srcTag(source))));
+  controller.on("alternateKick", testingBayAction(({ source }) => {
     if (triggerKick(kbKickFoot, srcTag(source))) {
       kbKickFoot = kbKickFoot === "left" ? "right" : "left";
     }
-  });
+  }));
   // Sit is the legs-only skill; on rollers the same button hands over to
   // the crouch-glide, exactly as the (now unbound) roll action did.
-  controller.on("sitToggle", ({ source } = {}) => {
+  controller.on("sitToggle", testingBayAction(({ source } = {}) => {
     if (loco !== "legs") return triggerCrouch(srcTag(source));
     // A community trick / script takes over the R key while it is mounted
     // (a custom sitstand keeps the sit toggle: it IS the sit policy).
@@ -2397,12 +2420,12 @@ async function boot({ scene, camera, renderer }) {
     if (customPolicy?.slot === "script") return toggleScript();
     const sitting = mode === "sitstand" && sitFlag === 1;
     setMode(sitting ? "walk" : "sit");
-  });
+  }));
   // Pad DpadUp short press: straight back to running (ignored mid-roll /
   // mid-crouch: those hand back to walk on their own).
-  controller.on("walk", () => {
+  controller.on("walk", testingBayAction(() => {
     if (mode !== "walk" && mode !== "roll" && mode !== "crouch") setMode("walk");
-  });
+  }));
   controller.on("quack", () => quackLoud());
   controller.on("wheeeStart", () => startWheee());
   controller.on("wheeeStop", () => stopWheee());
@@ -2578,6 +2601,7 @@ async function boot({ scene, camera, renderer }) {
       setStore({ variant: name });
     },
     requestLoco: (name) => {
+      if (store().environmentMode === "mission") return;
       if (name !== "legs" && name !== "rollers") return;
       setStore({ locoWant: name });
       reconcileLoco();
@@ -2585,15 +2609,18 @@ async function boot({ scene, camera, renderer }) {
     resetSim,
     setAutonomy: ({ enabled, mode } = {}) => {
       const nextMode = mode === "chase" ? "chase" : "roam";
-      autonomousSource.configure({ enabled, mode: nextMode });
+      const nextEnabled = store().environmentMode === "mission" ? true : !!enabled;
+      autonomousSource.configure({ enabled: nextEnabled, mode: nextMode });
       waypointSource.cancel();
-      setStore({ autonomyEnabled: !!enabled, autonomyMode: nextMode });
+      setStore({ autonomyEnabled: nextEnabled, autonomyMode: nextMode });
     },
     stopAutonomy: () => {
+      if (store().environmentMode === "mission") return;
       autonomousSource.stop();
       setStore({ autonomyEnabled: false, autonomyStatus: "Stopped" });
     },
     triggerPolicy: (name) => {
+      if (store().environmentMode === "mission") return false;
       // A direct policy choice is an explicit manual command. Stop the
       // autonomous source first so it cannot resume steering after the
       // selected one-shot hands control back to the walker.
@@ -2622,6 +2649,7 @@ async function boot({ scene, camera, renderer }) {
       }
     },
     setObstaclePlacement: (enabled) => {
+      if (store().environmentMode === "mission") return;
       obstaclePlacement = !!enabled;
       if (obstaclePlacement) { nfcPlacement = false; publishNfcState({ placing: false }); }
       waypointSource.cancel();
@@ -2630,6 +2658,7 @@ async function boot({ scene, camera, renderer }) {
     },
     clearObstacles,
     setNfcPlacement: (enabled) => {
+      if (store().environmentMode === "mission") return;
       nfcPlacement = !!enabled;
       if (nfcPlacement) { obstaclePlacement = false; setStore({ obstaclePlacement: false }); }
       waypointSource.cancel();

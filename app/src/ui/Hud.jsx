@@ -259,6 +259,8 @@ export function SensorsButton({ sx }) {
 
 function PoliciesButton() {
   const visible = useGame((s) => s.policiesVisible);
+  const mission = useGame((s) => s.environmentMode === "mission");
+  if (mission) return null;
   return (
     <HudPlate caption="Moves" captionSide="right"
       sx={{ position: "fixed", top: "1.25rem", right: "9.2rem", zIndex: 10 }}>
@@ -308,10 +310,11 @@ const OFFICIAL_POLICIES = [
 
 function PoliciesPanel() {
   const visible = useGame((s) => s.policiesVisible);
+  const mission = useGame((s) => s.environmentMode === "mission");
   const loco = useGame((s) => s.loco);
   const active = useGame((s) => s.modeLabel);
   const custom = useGame((s) => s.customPolicy);
-  if (!visible) return null;
+  if (!visible || mission) return null;
   const policies = custom?.status === "active"
     ? [...OFFICIAL_POLICIES, { id: "custom", label: custom.title || custom.name,
       checkpoint: `Community · ${custom.slot}`, loco: custom.slot === "walk" ? "legs" : "both" }]
@@ -367,6 +370,7 @@ function PoliciesPanel() {
 function Quickbar() {
   const variant = useGame((s) => s.variant);
   const locoWant = useGame((s) => s.locoWant);
+  const mission = useGame((s) => s.environmentMode === "mission");
   return (
     <Box
       sx={{
@@ -452,11 +456,14 @@ function Quickbar() {
                 key={name}
                 component="button"
                 type="button"
+                disabled={mission}
                 aria-pressed={selected}
                 onClick={() => { uiClick(); gameApi.requestLoco?.(name); }}
                 sx={{
                   ...hudHitSx,
                   px: "1.05rem",
+                  cursor: mission ? "not-allowed" : "pointer",
+                  opacity: mission ? 0.35 : 1,
                   background: selected ? ORANGE : "transparent",
                   color: selected ? COMIC_INK : "rgba(250, 248, 242, 0.72)",
                   "&:hover": {
@@ -483,8 +490,10 @@ function Quickbar() {
 }
 
 function ObstaclePanel() {
+  const mission = useGame((s) => s.environmentMode === "mission");
   const placing = useGame((s) => s.obstaclePlacement);
   const count = useGame((s) => s.obstacleCount);
+  if (mission) return null;
   return (
     <HudPlate caption="Cubes">
       <Box sx={{ display: "inline-flex", alignItems: "stretch", height: "100%" }}>
@@ -508,6 +517,7 @@ function ObstaclePanel() {
 }
 
 function AutonomyPanel() {
+  const mission = useGame((s) => s.environmentMode === "mission");
   const enabled = useGame((s) => s.autonomyEnabled);
   const mode = useGame((s) => s.autonomyMode);
   const status = useGame((s) => s.autonomyStatus);
@@ -520,11 +530,12 @@ function AutonomyPanel() {
       <Box sx={{ display: "inline-flex", alignItems: "stretch", height: "100%" }}>
         <Box
           component="button" type="button" aria-pressed={enabled}
+          disabled={mission}
           onClick={() => set(!enabled)}
           sx={{ ...hudHitSx, px: "0.75rem", color: enabled ? COMIC_INK : CREAM,
             background: enabled ? ORANGE : "transparent" }}
         >
-          {enabled ? "Autonomous" : "Manual"}
+          {mission ? "Autonomous" : enabled ? "Autonomous" : "Manual"}
         </Box>
         {enabled && [
           ["roam", "Roam"], ["chase", "Chase ball"],
@@ -538,11 +549,11 @@ function AutonomyPanel() {
         <Box sx={{ ...hudHitSx, cursor: "default", px: "0.7rem", minWidth: "8rem", color: "rgba(250,248,242,.72)", fontFamily: MONO, fontSize: "0.58rem" }}>
           {status}
         </Box>
-        <Box component="button" type="button" aria-label="Stop autonomous control"
+        {!mission && <Box component="button" type="button" aria-label="Stop autonomous control"
           onClick={() => { uiClick(); gameApi.stopAutonomy?.(); }}
           sx={{ ...hudHitSx, px: "0.7rem", background: "#d83b32", color: CREAM }}>
           Stop
-        </Box>
+        </Box>}
       </Box>
     </HudPlate>
   );
@@ -555,7 +566,8 @@ function AutonomyPanel() {
 // (gameApi.clearCustomPolicy).
 function PolicyChip() {
   const cp = useGame((s) => s.customPolicy);
-  if (cp?.status !== "active") return null;
+  const mission = useGame((s) => s.environmentMode === "mission");
+  if (mission || cp?.status !== "active") return null;
   const title = cp.title || cp.name;
   const by = cp.author ? ` by ${cp.author}` : "";
   const hint = cp.slot === "trick" || cp.slot === "script" || cp.slot === "sitstand" ? " \u00b7 R" : "";

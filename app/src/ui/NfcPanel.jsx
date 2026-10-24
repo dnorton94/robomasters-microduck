@@ -21,6 +21,7 @@ export default function NfcPanel() {
   const entered = useGame((s) => s.entered);
   const menuOpen = useGame((s) => s.menuOpen);
   const nfc = useGame((s) => s.nfc);
+  const mission = useGame((s) => s.environmentMode === "mission");
   const sensorsVisible = useGame((s) => s.sensorsVisible);
   const [selectedId, setSelectedId] = useState("");
   const [draft, setDraft] = useState({ type: "text", content: "" });
@@ -72,7 +73,7 @@ export default function NfcPanel() {
       </Box>
       <Reader label="HEAD ANTENNA" tag={nfc.head} />
       <Reader label="BEAK ANTENNA" tag={nfc.beak} />
-      <Box sx={{ display: "flex", mt: .7, gap: .5 }}>
+      {!mission && <Box sx={{ display: "flex", mt: .7, gap: .5 }}>
         <Box component="button" type="button" onClick={() => gameApi.setNfcPlacement?.(!nfc.placing)}
           sx={{ flex: 1, border: `1px solid ${ORANGE}`, background: nfc.placing ? ORANGE : "transparent",
             color: nfc.placing ? COMIC_INK : CREAM, fontFamily: ANTON, cursor: "pointer", py: .4 }}>
@@ -81,11 +82,11 @@ export default function NfcPanel() {
         <Box component="button" type="button" disabled={!nfc.tagCount} onClick={() => gameApi.clearNfcTags?.()}
           sx={{ border: `1px solid ${CREAM}`, background: "transparent", color: CREAM,
             fontFamily: ANTON, cursor: "pointer", opacity: nfc.tagCount ? 1 : .35 }}>CLEAR</Box>
-      </Box>
-      <Box sx={{ mt: .5, fontFamily: MONO, fontSize: ".48rem", color: "rgba(250,248,242,.48)" }}>
+      </Box>}
+      {!mission && <Box sx={{ mt: .5, fontFamily: MONO, fontSize: ".48rem", color: "rgba(250,248,242,.48)" }}>
         {nfc.tagCount}/6 TAGS · ATTACH TO A CUBE SURFACE
-      </Box>
-      {!!nfc.tags.length && <Box sx={{ mt: .8, pt: .7, borderTop: "1px solid rgba(250,248,242,.18)" }}>
+      </Box>}
+      {!mission && !!nfc.tags.length && <Box sx={{ mt: .8, pt: .7, borderTop: "1px solid rgba(250,248,242,.18)" }}>
         <Box sx={{ display: "flex", gap: .5 }}>
           <Box component="select" aria-label="NFC tag to edit" value={selectedId}
             onChange={(event) => selectTag(event.target.value)} sx={{ ...fieldSx, flex: 1 }}>
