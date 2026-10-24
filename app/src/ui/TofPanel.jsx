@@ -4,6 +4,7 @@ import { tofApi } from "../game/tof-sensor.js";
 import { useGame } from "../store.js";
 import { ORANGE, MONO } from "../theme.js";
 import { ANTON, COMIC_INK, CREAM } from "./comic.jsx";
+import SensorEye from "./SensorEye.jsx";
 
 const cellColor = (distance, range) => {
   if (distance == null) return "rgba(38,55,70,.72)";
@@ -21,10 +22,10 @@ export default function TofPanel() {
   if (!entered || menuOpen || !sensorsVisible) return null;
 
   if (!tof.enabled) return (
-    <Box component="button" type="button" onClick={() => tofApi.setEnabled(true)}
+    <Box component="button" type="button" aria-label="Show ToF sensor" onClick={() => tofApi.setEnabled(true)}
       sx={{ position: "fixed", top: "20.7rem", right: "1.5rem", zIndex: 11,
         border: `2px solid ${CREAM}`, background: "rgba(8,8,12,.82)", color: CREAM,
-        fontFamily: ANTON, letterSpacing: ".08em", px: 1, py: .6, cursor: "pointer" }}>Show ToF</Box>
+        fontFamily: ANTON, px: 1, py: .6, cursor: "pointer" }}><SensorEye visible={false} /></Box>
   );
 
   return (
@@ -37,7 +38,8 @@ export default function TofPanel() {
         </Box>
         <Box component="button" type="button" aria-label="Hide ToF sensor"
           onClick={() => tofApi.setEnabled(false)} sx={{ border: 0, background: "transparent",
-            color: CREAM, fontFamily: ANTON, cursor: "pointer" }}>×</Box>
+            color: CREAM, fontFamily: ANTON, cursor: "pointer", display: "grid",
+            placeItems: "center", width: 24, height: 24 }}><SensorEye visible /></Box>
       </Box>
       <Box aria-label="8 by 8 time-of-flight distance grid" sx={{ display: "grid",
         gridTemplateColumns: "repeat(8, 1fr)", gap: "2px" }}>

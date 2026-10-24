@@ -4,6 +4,7 @@ import Box from "@mui/material/Box";
 import { gameApi, useGame } from "../store.js";
 import { ORANGE, MONO } from "../theme.js";
 import { ANTON, COMIC_INK, CREAM } from "./comic.jsx";
+import SensorEye from "./SensorEye.jsx";
 
 export default function PovViewport() {
   const canvasRef = useRef(null);
@@ -32,11 +33,12 @@ export default function PovViewport() {
   if (!entered || menuOpen || !sensorsVisible) return null;
   if (!enabled) {
     return (
-      <Box component="button" type="button" onClick={() => useGame.setState({ povEnabled: true })}
+      <Box component="button" type="button" aria-label="Show robot POV"
+        onClick={() => useGame.setState({ povEnabled: true })}
         sx={{ position: "fixed", top: "5.2rem", right: "1.5rem", zIndex: 11,
           border: `2px solid ${CREAM}`, background: "rgba(8,8,12,.8)", color: CREAM,
           fontFamily: ANTON, letterSpacing: ".1em", px: 1.2, py: 0.7, cursor: "pointer" }}>
-        Show POV
+        <SensorEye visible={false} />
       </Box>
     );
   }
@@ -56,7 +58,8 @@ export default function PovViewport() {
       <Box component="button" type="button" aria-label="Hide robot POV"
         onClick={() => useGame.setState({ povEnabled: false })}
         sx={{ position: "absolute", top: 4, right: 4, border: 0, background: "rgba(8,8,12,.75)",
-          color: CREAM, fontFamily: ANTON, cursor: "pointer", width: 24, height: 24 }}>×</Box>
+          color: CREAM, fontFamily: ANTON, cursor: "pointer", width: 28, height: 28,
+          display: "grid", placeItems: "center" }}><SensorEye visible /></Box>
     </Box>
   );
 }

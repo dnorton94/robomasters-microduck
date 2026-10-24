@@ -4,6 +4,7 @@ import { gameApi, useGame } from "../store.js";
 import { nfcApi } from "../game/nfc-sensor.js";
 import { ORANGE, MONO } from "../theme.js";
 import { ANTON, COMIC_INK, CREAM } from "./comic.jsx";
+import SensorEye from "./SensorEye.jsx";
 
 const Reader = ({ label, tag }) => (
   <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, py: .35,
@@ -52,10 +53,10 @@ export default function NfcPanel() {
   };
   if (!entered || menuOpen || !sensorsVisible) return null;
   if (!nfc.enabled) return (
-    <Box component="button" type="button" onClick={() => nfcApi.setEnabled(true)}
+    <Box component="button" type="button" aria-label="Show NFC sensors" onClick={() => nfcApi.setEnabled(true)}
       sx={{ position: "fixed", top: "41rem", right: "1.5rem", zIndex: 11,
         border: `2px solid ${CREAM}`, background: "rgba(8,8,12,.82)", color: CREAM,
-        fontFamily: ANTON, letterSpacing: ".08em", px: 1, py: .6, cursor: "pointer" }}>Show NFC</Box>
+        fontFamily: ANTON, px: 1, py: .6, cursor: "pointer" }}><SensorEye visible={false} /></Box>
   );
   return (
     <Box sx={{ position: "fixed", top: "41rem", right: "1.5rem", zIndex: 11,
@@ -64,7 +65,10 @@ export default function NfcPanel() {
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <Box sx={{ fontFamily: MONO, fontSize: ".58rem", letterSpacing: ".11em", color: ORANGE }}>NFC · NEAR-FIELD READERS</Box>
         <Box component="button" type="button" aria-label="Hide NFC sensors" onClick={() => nfcApi.setEnabled(false)}
-          sx={{ border: 0, background: "transparent", color: CREAM, fontFamily: ANTON, cursor: "pointer" }}>×</Box>
+          sx={{ border: 0, background: "transparent", color: CREAM, fontFamily: ANTON,
+            cursor: "pointer", display: "grid", placeItems: "center", width: 24, height: 24 }}>
+          <SensorEye visible />
+        </Box>
       </Box>
       <Reader label="HEAD ANTENNA" tag={nfc.head} />
       <Reader label="BEAK ANTENNA" tag={nfc.beak} />

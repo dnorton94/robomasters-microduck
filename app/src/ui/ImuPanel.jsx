@@ -4,6 +4,7 @@ import { imuApi } from "../game/imu-sensor.js";
 import { useGame } from "../store.js";
 import { ORANGE, MONO } from "../theme.js";
 import { ANTON, COMIC_INK, CREAM } from "./comic.jsx";
+import SensorEye from "./SensorEye.jsx";
 
 const axes = ["X", "Y", "Z"];
 const VectorRow = ({ label, values, unit }) => (
@@ -24,10 +25,11 @@ const VectorRow = ({ label, values, unit }) => (
 function ImuCard({ sensor, label, top }) {
   const imu = useGame((state) => state.imu[sensor]);
   if (!imu.enabled) return (
-    <Box component="button" type="button" onClick={() => imuApi.setEnabled(sensor, true)}
+    <Box component="button" type="button" aria-label={`Show ${label} IMU`}
+      onClick={() => imuApi.setEnabled(sensor, true)}
       sx={{ position: "fixed", top, left: "1.5rem", zIndex: 11, border: `2px solid ${CREAM}`,
         background: "rgba(8,8,12,.82)", color: CREAM, fontFamily: ANTON,
-        letterSpacing: ".08em", px: 1, py: .6, cursor: "pointer" }}>Show {label} IMU</Box>
+        px: 1, py: .6, cursor: "pointer" }}><SensorEye visible={false} /></Box>
   );
   return (
     <Box sx={{ position: "fixed", top, left: "1.5rem", zIndex: 11, width: 260,
@@ -39,7 +41,8 @@ function ImuCard({ sensor, label, top }) {
         </Box>
         <Box component="button" type="button" aria-label={`Hide ${label} IMU`}
           onClick={() => imuApi.setEnabled(sensor, false)} sx={{ border: 0, background: "transparent",
-            color: CREAM, fontFamily: ANTON, cursor: "pointer" }}>×</Box>
+            color: CREAM, fontFamily: ANTON, cursor: "pointer", display: "grid",
+            placeItems: "center", width: 24, height: 24 }}><SensorEye visible /></Box>
       </Box>
       <VectorRow label="ACCELEROMETER" values={imu.acceleration} unit="M/S²" />
       <VectorRow label="GYROSCOPE" values={imu.angularVelocity} unit="RAD/S" />

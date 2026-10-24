@@ -4,6 +4,7 @@ import { microphoneApi } from "../game/microphone.js";
 import { useGame } from "../store.js";
 import { ORANGE, MONO } from "../theme.js";
 import { ANTON, COMIC_INK, CREAM } from "./comic.jsx";
+import SensorEye from "./SensorEye.jsx";
 
 export default function MicrophonePanel() {
   const entered = useGame((s) => s.entered);
@@ -16,10 +17,11 @@ export default function MicrophonePanel() {
   useEffect(() => () => microphoneApi.stop(), []);
   if (!entered || menuOpen || !sensorsVisible) return null;
   if (!visible) return (
-    <Box component="button" type="button" onClick={() => useGame.setState({ microphoneVisible: true })}
+    <Box component="button" type="button" aria-label="Show microphone sensor"
+      onClick={() => useGame.setState({ microphoneVisible: true })}
       sx={{ position: "fixed", top: "16.5rem", right: "1.5rem", zIndex: 11,
         border: `2px solid ${CREAM}`, background: "rgba(8,8,12,.82)", color: CREAM,
-        fontFamily: ANTON, letterSpacing: ".08em", px: 1, py: .6, cursor: "pointer" }}>Show Mic</Box>
+        fontFamily: ANTON, px: 1, py: .6, cursor: "pointer" }}><SensorEye visible={false} /></Box>
   );
 
   const listening = mic.status === "listening";
@@ -48,7 +50,8 @@ export default function MicrophonePanel() {
         <Box component="button" type="button" aria-label="Hide microphone sensor"
           onClick={() => useGame.setState({ microphoneVisible: false })}
           sx={{ border: 0, background: "transparent", color: CREAM, fontFamily: ANTON,
-            cursor: "pointer", alignSelf: "flex-start" }}>×</Box>
+            cursor: "pointer", alignSelf: "flex-start", display: "grid", placeItems: "center",
+            width: 24, height: 24 }}><SensorEye visible /></Box>
       </Box>
       {mic.error && <Box role="alert" sx={{ mt: .65, fontFamily: MONO, fontSize: ".56rem", color: "#ff766e" }}>{mic.error}</Box>}
       <Box sx={{ mt: .55, fontFamily: MONO, fontSize: ".48rem", color: "rgba(250,248,242,.38)" }}>
