@@ -154,9 +154,18 @@ the floor rather than an obstacle.
 Completing Stage One reveals the Stage Two access code
 `ACTIVATEDUCKMASTER`. Entering that earned code in the completion panel opens
 Stage Two and replaces the plate with three physical core cubes: red, blue and
-orange. Each cube carries a distinct, locally generated QR code (`VAULT-CORE`
-payloads) that can be observed through the fixed head camera and processed by
-a participant's bundled vision behaviour without internet access.
+orange. Cube positions and QR-facing directions change each attempt, and the
+safe core is randomized. Each cube carries a locally generated diagnostic QR
+payload that can be observed through the fixed head camera and processed by a
+participant's bundled vision behaviour without internet access.
+
+The autonomous behaviour reports a decoded observation with
+`emitAction("reportQr", { color, payload })`. The evaluator silently checks the
+exact payload, camera alignment and scan distance. All three cores must be
+scanned, the duck must withdraw to a clear decision position, and then remain
+beside its chosen core to submit. Colliding with a cube or selecting an unsafe
+core fails the attempt. The HUD deliberately provides no scan, range, decoded
+message or correct-core feedback.
 
 Mission locks autonomous control on but does not replace its configuration. It
 runs the registered code-backed behaviour selected in the Testing Bay. An agent

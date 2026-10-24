@@ -58,7 +58,7 @@ import { publishTofFrame, tofApi } from "./tof-sensor.js";
 import { publishNfcState, nfcApi } from "./nfc-sensor.js";
 import { publishImuState } from "./imu-sensor.js";
 import { createRedPlateMission, RED_PLATE_SIZE } from "./missions/red-plate.js";
-import { acceptsStageTwoCode, STAGE_TWO_CUBES } from "./missions/stage-two.js";
+import { acceptsStageTwoCode, createStageTwoMission, STAGE_TWO_CUBES } from "./missions/stage-two.js";
 import { setMissionNetworkLock } from "./missions/network-lock.js";
 import { MICRODUCK_HARDWARE } from "./hardware-spec.js";
 import * as fx from "./fx/fx-wireframe.js";
@@ -1497,11 +1497,17 @@ async function boot({ scene, camera, renderer }) {
   syncObstaclesToPhysics();
 
   const stageTwoDecals = [];
-  let stageTwoPrepared = false;
-  async function prepareStageTwoCubes() {
-    if (stageTwoPrepared) return;
-    stageTwoPrepared = true;
-    await Promise.all(STAGE_TWO_CUBES.map(async (cube, index) => {
+  let stageTwoMission = null;
+  let stageTwoRound = [];
+  const stageTwoReportQueue = [];
+  async function prepareStageTwoCubes(round) {
+    for (const decal of stageTwoDecals.splice(0)) {
+      decal.removeFromParent();
+      decal.geometry.dispose();
+      decal.material.map?.dispose();
+      decal.material.dispose();
+    }
+    await Promise.all(round.map(async (cube, index) => {
       const mesh = obstacleMeshes[index];
       mesh.material = new THREE.MeshStandardMaterial({
         color: cube.color, roughness: 0.68, metalness: 0.04,
@@ -1532,17 +1538,28 @@ async function boot({ scene, camera, renderer }) {
     redPlate.visible = false;
     clearNfcTags();
     obstaclePositions.fill(null);
-    STAGE_TWO_CUBES.forEach((cube, index) => { obstaclePositions[index] = { x: cube.x, y: cube.y }; });
+    const slots = [
+      [-0.82, 0.7], [0, 0.96], [0.82, 0.7], [-0.88, -0.42], [0.1, -0.8], [0.88, -0.35],
+    ].sort(() => Math.random() - .5).slice(0, 3);
+    const correctCore = STAGE_TWO_CUBES[Math.floor(Math.random() * STAGE_TWO_CUBES.length)].name;
+    stageTwoRound = STAGE_TWO_CUBES.map((cube, index) => {
+      const stable = cube.name === correctCore;
+      return { ...cube, x: slots[index][0], y: slots[index][1],
+        yaw: Math.floor(Math.random() * 4) * Math.PI / 2,
+        payload: `VAULT|CORE=${cube.name}|OUTPUT=${stable ? "STABLE" : "CRITICAL"}|CONTAINMENT=${stable ? "NOMINAL" : "UNSAFE"}` };
+    });
+    stageTwoMission = createStageTwoMission({ correctCore });
+    stageTwoReportQueue.length = 0;
+    stageTwoRound.forEach((cube, index) => { obstaclePositions[index] = { x: cube.x, y: cube.y }; });
     obstacleMeshes.slice(0, 3).forEach((mesh, index) => {
       mesh.material = new THREE.MeshStandardMaterial({
-        color: STAGE_TWO_CUBES[index].color, roughness: 0.68, metalness: 0.04,
+        color: stageTwoRound[index].color, roughness: 0.68, metalness: 0.04,
       });
+      mesh.rotation.y = stageTwoRound[index].yaw;
     });
-    stageTwoDecals.forEach((decal) => { decal.visible = true; });
     syncObstaclesToPhysics();
-    setStore({ obstacleCount: 3, mission: { stage: 2, status: "active",
-      feedback: "THREE CORE SIGNALS DETECTED", attempt: 1 } });
-    prepareStageTwoCubes().catch((error) => console.warn("Stage Two QR preparation failed", error));
+    setStore({ obstacleCount: 3, mission: { stage: 2, status: "active", attempt: 1 } });
+    prepareStageTwoCubes(stageTwoRound).catch((error) => console.warn("Stage Two QR preparation failed", error));
     return true;
   }
 
@@ -2146,7 +2163,33 @@ async function boot({ scene, camera, renderer }) {
     } }, now);
   }
   function updateMission(now) {
-    if (store().environmentMode !== "mission" || !redPlateAvailable) return;
+    if (store().environmentMode !== "mission") return;
+    if (store().mission.stage === 2 && stageTwoMission) {
+      const robot = { x: data.qpos[0], y: data.qpos[1], yaw: duckYaw(data.qpos) };
+      const observations = stageTwoRound.map((cube) => {
+        const dx = cube.x - robot.x, dy = cube.y - robot.y;
+        const distance = Math.hypot(dx, dy);
+        let bearing = Math.atan2(dy, dx) - robot.yaw;
+        bearing = Math.atan2(Math.sin(bearing), Math.cos(bearing));
+        const fromCubeX = (robot.x - cube.x) / Math.max(distance, 1e-6);
+        const fromCubeY = (robot.y - cube.y) / Math.max(distance, 1e-6);
+        const qrNormalX = Math.sin(cube.yaw);
+        const qrNormalY = -Math.cos(cube.yaw);
+        const facingQr = fromCubeX * qrNormalX + fromCubeY * qrNormalY > 0.7;
+        const report = stageTwoReportQueue.find((item) => now - item.at < 600 &&
+          item.color === cube.name && item.payload === cube.payload);
+        return { name: cube.name, distance,
+          colliding: distance < 0.17,
+          scanVisible: !!report && distance >= 0.2 && distance <= 0.55 && Math.abs(bearing) < 0.42 && facingQr };
+      });
+      const result = stageTwoMission.update({ observations, nowMs: now });
+      for (let i = stageTwoReportQueue.length - 1; i >= 0; i--)
+        if (now - stageTwoReportQueue[i].at >= 600 || observations.some((item) => item.scanVisible))
+          stageTwoReportQueue.splice(i, 1);
+      if (result.changed || result.event) setStore({ mission: { stage: 2, ...result.state, attempt: 1 } });
+      return;
+    }
+    if (!redPlateAvailable) return;
     const half = RED_PLATE_SIZE / 2;
     const onPlate = Math.abs(data.qpos[0] - redPlatePosition.x) <= half &&
       Math.abs(data.qpos[1] - redPlatePosition.y) <= half && data.qpos[2] > 0.11;
@@ -2514,6 +2557,11 @@ async function boot({ scene, camera, renderer }) {
     if (mode !== "walk" && mode !== "roll" && mode !== "crouch") setMode("walk");
   }));
   controller.on("quack", () => quackLoud());
+  controller.on("reportQr", ({ source, color, payload }) => {
+    if (source !== "autonomous" || store().environmentMode !== "mission" || store().mission.stage !== 2) return;
+    stageTwoReportQueue.push({ color: String(color ?? "").toUpperCase(),
+      payload: String(payload ?? ""), at: performance.now() });
+  });
   controller.on("wheeeStart", () => startWheee());
   controller.on("wheeeStop", () => stopWheee());
 

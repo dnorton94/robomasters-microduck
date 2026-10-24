@@ -55,9 +55,13 @@ export default function MissionPanel() {
         ACCESS CODE NOT RECOGNISED
       </Box>}
     </Box>}
-    {mission.stage === 2 && <Box sx={{ position: "fixed", zIndex: 9, top: 82, left: "50%",
+    {mission.stage === 2 && mission.status === "active" && <Box sx={{ position: "fixed", zIndex: 9, top: 82, left: "50%",
       transform: "translateX(-50%)", px: 1.4, py: .7, border: `2px solid ${ORANGE}`,
       background: "rgba(7,8,12,.88)", color: CREAM, fontFamily: MONO, fontSize: ".68rem",
-      letterSpacing: ".06em" }}>STAGE TWO · THREE CORE SIGNALS DETECTED</Box>}
+      letterSpacing: ".06em" }}>STAGE TWO · THE THREE CORES</Box>}
+    {mission.stage === 2 && mission.status === "success" && <Box role="status"
+      sx={{ position: "fixed", zIndex: 20, left: "50%", top: "18%", transform: "translateX(-50%)",
+        p: 2, border: "3px solid #38ef91", background: "rgba(7,8,12,.96)", color: "#38ef91",
+        fontFamily: ANTON, fontSize: "1.3rem", letterSpacing: ".08em" }}>STAGE TWO COMPLETE</Box>}
   </>;
 }

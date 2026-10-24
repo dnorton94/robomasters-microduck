@@ -9,5 +9,8 @@
 // `sensors` exposes the fixed hardware contract and live simulated readings.
 // For local camera inference, call sensors.camera.render(renderer, camera),
 // then read the renderer canvas into the bundled/local vision model.
+// Stage Two accepts a decoded observation through:
+//   emitAction("reportQr", { color: "RED", payload: decodedQrText })
+// The mission validates that report against camera pose, range and the QR.
 // Local vision models may be imported here, but Mission blocks all networking.
 export const CUSTOM_AUTONOMOUS_BEHAVIORS = [];
