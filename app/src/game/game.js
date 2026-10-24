@@ -55,6 +55,7 @@ import { createSimPerception } from "./autonomy/perception.js";
 import { publishTofFrame, tofApi } from "./tof-sensor.js";
 import { publishNfcState, nfcApi } from "./nfc-sensor.js";
 import { publishImuState } from "./imu-sensor.js";
+import { createRedPlateMission, RED_PLATE_POSITION } from "./missions/red-plate.js";
 import * as fx from "./fx/fx-wireframe.js";
 import { createWaypointMarker } from "./fx/waypoint-marker.js";
 import { createCeremony, CAM_RESET_S } from "./ceremony.js";
@@ -1360,6 +1361,26 @@ async function boot({ scene, camera, renderer }) {
   reliefGridMat = grid.material; // relief drive mirrors uTopoScale into it
   const { wallMats, wallMeshes } = makeArenaWalls();
   for (const m of wallMeshes) scene.add(m);
+  const redPlateMission = createRedPlateMission();
+  const redPlateMaterial = new THREE.MeshStandardMaterial({
+    color: 0xa71919, emissive: 0x360000, roughness: 0.45, metalness: 0.25,
+  });
+  const redPlate = new THREE.Mesh(new THREE.CylinderGeometry(RED_PLATE_POSITION.radius,
+    RED_PLATE_POSITION.radius, 0.018, 48), redPlateMaterial);
+  redPlate.position.set(RED_PLATE_POSITION.x, 0.009, -RED_PLATE_POSITION.y);
+  redPlate.visible = false;
+  redPlate.receiveShadow = true;
+  scene.add(redPlate);
+  const publishMission = (result) => {
+    if (!result.changed) return;
+    setStore({ mission: { stage: 1, ...result.state } });
+    const active = result.state.status === "timing";
+    const armed = result.state.status === "armed" || result.state.status === "success";
+    const failed = result.state.status === "failed";
+    redPlateMaterial.color.setHex(armed ? 0x24b877 : failed ? 0xff2020 : 0xa71919);
+    redPlateMaterial.emissive.setHex(armed ? 0x075936 : active ? 0x8c1700 : failed ? 0xff0000 : 0x360000);
+    redPlateMaterial.emissiveIntensity = failed ? 2.5 : active ? 1.5 : 1;
+  };
   function setEnvironmentMode(mode) {
     const mission = mode === "mission";
     const cell = mission ? 0x405568 : 0x8e8371;
@@ -1372,6 +1393,8 @@ async function boot({ scene, camera, renderer }) {
       material.uniforms.uCellColor.value.setHex(cell);
       material.uniforms.uSectionColor.value.setHex(section);
     }
+    redPlate.visible = mission;
+    if (mission) publishMission(redPlateMission.reset({ increment: false }));
   }
   const obstacleMaterial = new THREE.MeshStandardMaterial({
     color: 0xff7a2f, roughness: 0.72, metalness: 0.05,
@@ -1983,6 +2006,17 @@ async function boot({ scene, camera, renderer }) {
       orientation: [_imuEuler.x, _imuEuler.y, _imuEuler.z].map((value) => round3(value * deg)),
     } }, now);
   }
+  function updateMission(now) {
+    if (store().environmentMode !== "mission") return;
+    const dx = data.qpos[0] - RED_PLATE_POSITION.x;
+    const dy = data.qpos[1] - RED_PLATE_POSITION.y;
+    const onPlate = Math.hypot(dx, dy) <= RED_PLATE_POSITION.radius && data.qpos[2] > 0.11;
+    publishMission(redPlateMission.update({
+      onPlate,
+      autonomous: store().autonomyEnabled,
+      nowMs: now,
+    }));
+  }
   function syncRig() {
     const qpos = data.qpos;
     trunkGroup.position.set(qpos[0], qpos[1], qpos[2]);
@@ -2276,6 +2310,7 @@ async function boot({ scene, camera, renderer }) {
     updateTofSensor(sensorNow);
     updateNfcSensors(sensorNow);
     updateImuSensors(sensorNow);
+    updateMission(sensorNow);
     syncJaw();
     ghosts?.update();
     // Spatial audio follows the movers: listener on the camera, emitters
@@ -2569,6 +2604,7 @@ async function boot({ scene, camera, renderer }) {
     clearNfcTags,
     updateNfcTag,
     setEnvironmentMode,
+    resetMission: () => publishMission(redPlateMission.reset()),
     renderPov: (viewRenderer, viewCamera) => {
       // In kinematics.json, body `jaw_soft` carries joint `head_roll` and
       // therefore owns the MJCF head_camera frame.

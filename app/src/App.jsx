@@ -15,6 +15,7 @@ import MicrophonePanel from "./ui/MicrophonePanel.jsx";
 import TofPanel from "./ui/TofPanel.jsx";
 import NfcPanel from "./ui/NfcPanel.jsx";
 import ImuPanel from "./ui/ImuPanel.jsx";
+import MissionPanel from "./ui/MissionPanel.jsx";
 import { useGame } from "./store.js";
 
 export default function App() {
@@ -91,6 +92,7 @@ export default function App() {
       <TofPanel />
       <NfcPanel />
       <ImuPanel />
+      <MissionPanel />
       <TouchOverlay />
       <BiosOverlay />
       <TitleMenu />

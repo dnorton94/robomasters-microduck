@@ -126,6 +126,21 @@ The sensor adapters intentionally sit behind small publish/subscribe APIs so
 real camera, ToF, NFC, IMU or microphone sources can replace the simulation
 inputs without rewriting the displays or autonomous controller.
 
+### Mission mode
+
+Use the **Testing Bay / Mission** control to enter Stage One: **The Red Plate**.
+The duck must solve the plate's hidden timing protocol using autonomous control;
+the mission panel and plate lighting provide experimental feedback without
+publishing the thresholds in the interface. Manual entry is rejected, leaving
+too early resets the attempt, and a containment failure or completion offers a
+stage retry. The mission evaluator is isolated from the HUD and covered by
+boundary tests.
+
+This browser build is an educational practice environment, not a secure exam
+client. A participant who controls a local source checkout can inspect or alter
+any client-side rule. Official results should therefore be validated by a
+server-authoritative mission service rather than trusting the local bundle.
+
 In roller mode the legs-only actions (kicks, sit) are disabled and their
 hints fade out; play the ball by driving into it.
 

@@ -47,6 +47,7 @@ export const useGame = create(
     sensorsVisible: true,
     policiesVisible: false,
     environmentMode: "testing", // "testing" | "mission"
+    mission: { stage: 1, status: "ready", feedback: "LOCATE THE RED PLATE", attempt: 1 },
     povEnabled: true,
     microphone: { status: "off", level: 0, error: null },
     microphoneVisible: true,
