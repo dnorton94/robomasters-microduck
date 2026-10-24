@@ -523,42 +523,55 @@ function AutonomyPanel() {
   const status = useGame((s) => s.autonomyStatus);
   const profiles = useGame((s) => s.autonomyProfiles);
   const profileId = useGame((s) => s.autonomyProfileId);
-  const persistProfiles = (next, nextProfileId = profileId) => {
+  const behaviorId = useGame((s) => s.autonomyBehaviorId);
+  const [editor, setEditor] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const persistProfiles = (next, extra = {}) => {
     localStorage.setItem("microduck-autonomy-profiles", JSON.stringify(next));
-    useGame.setState({ autonomyProfiles: next, autonomyProfileId: nextProfileId });
+    useGame.setState({ autonomyProfiles: next, ...extra });
   };
-  const set = (nextEnabled, nextMode = mode, nextProfileId = null) => {
+  const set = (nextEnabled, nextMode = mode, nextProfileId = null, nextBehaviorId = null) => {
     uiClick();
-    gameApi.setAutonomy?.({ enabled: nextEnabled, mode: nextMode, profileId: nextProfileId });
+    gameApi.setAutonomy?.({ enabled: nextEnabled, mode: nextMode,
+      profileId: nextProfileId, behaviorId: nextBehaviorId });
   };
-  const addProfile = () => {
-    const name = window.prompt("Name this autonomous profile:", "My autonomous mode")?.trim();
+  const openNew = () => {
+    setConfirmDelete(false);
+    setEditor({ id: null, name: "", behaviors: [] });
+  };
+  const openProfile = (profile) => {
+    setConfirmDelete(false);
+    setEditor(structuredClone(profile));
+  };
+  const saveEditor = () => {
+    const name = editor.name.trim();
     if (!name) return;
-    const answer = window.prompt("Base controller: roam or chase", "roam")?.trim().toLowerCase();
-    const base = answer === "chase" ? "chase" : "roam";
-    const profile = { id: crypto.randomUUID?.() ?? String(Date.now()), name, base };
-    const next = [...profiles, profile];
-    persistProfiles(next, profile.id);
-    set(true, base, profile.id);
+    if (!editor.id) {
+      const created = { ...editor, id: crypto.randomUUID?.() ?? String(Date.now()), name };
+      persistProfiles([...profiles, created]);
+    } else {
+      const saved = { ...editor, name, behaviors: editor.behaviors.filter((item) => item.name.trim()) };
+      const next = profiles.map((item) => item.id === saved.id ? saved : item);
+      persistProfiles(next);
+      if (profileId === saved.id) {
+        const active = saved.behaviors.find((item) => item.id === behaviorId);
+        if (active) set(true, active.base, saved.id, active.id);
+        else set(true, "roam", null, null);
+      }
+    }
+    setEditor(null);
   };
-  const editProfile = (profile) => {
-    const name = window.prompt("Profile name:", profile.name)?.trim();
-    if (!name) return;
-    const answer = window.prompt("Base controller: roam or chase", profile.base)?.trim().toLowerCase();
-    const base = answer === "chase" ? "chase" : "roam";
-    const next = profiles.map((item) => item.id === profile.id ? { ...item, name, base } : item);
-    persistProfiles(next);
-    if (profileId === profile.id) set(true, base, profile.id);
+  const deleteEditor = () => {
+    const next = profiles.filter((item) => item.id !== editor.id);
+    const active = profileId === editor.id;
+    persistProfiles(next, active ? { autonomyProfileId: null, autonomyBehaviorId: null } : {});
+    if (active) set(true, "roam", null, null);
+    setEditor(null);
   };
-  const deleteProfile = (profile) => {
-    if (!window.confirm(`Delete autonomous profile “${profile.name}”?`)) return;
-    const next = profiles.filter((item) => item.id !== profile.id);
-    const wasActive = profileId === profile.id;
-    persistProfiles(next, wasActive ? null : profileId);
-    if (wasActive) set(true, "roam", null);
-  };
+  const addBehavior = () => setEditor((current) => ({ ...current, behaviors: [...current.behaviors,
+    { id: crypto.randomUUID?.() ?? String(Date.now()), name: "New behaviour", base: "roam" }] }));
   return (
-    <HudPlate caption="Pilot">
+    <><HudPlate caption="Pilot">
       <Box sx={{ display: "inline-flex", alignItems: "stretch", height: "100%" }}>
         <Box
           component="button" type="button" aria-pressed={enabled}
@@ -573,27 +586,37 @@ function AutonomyPanel() {
           ["roam", "Roam"], ["chase", "Chase ball"],
         ].map(([value, label]) => (
           <Box key={value} component="button" type="button" aria-pressed={mode === value}
-            onClick={() => set(true, value, null)}
+            onClick={() => set(true, value, null, null)}
             sx={{ ...hudHitSx, px: "0.65rem", color: mode === value ? ORANGE : "rgba(250,248,242,.65)" }}>
             {label}
           </Box>
         ))}
         {enabled && !mission && profiles.map((profile) => (
           <Box key={profile.id} sx={{ display: "inline-flex", borderLeft: "1px solid rgba(250,248,242,.18)" }}>
-            <Box component="button" type="button" aria-pressed={profileId === profile.id}
-              onClick={() => set(true, profile.base, profile.id)} title={`${profile.name} · based on ${profile.base}`}
+            <Box component="button" type="button" disabled={!profile.behaviors.length}
+              aria-pressed={profileId === profile.id}
+              onClick={() => { const behavior = profile.behaviors[0];
+                set(true, behavior.base, profile.id, behavior.id); }} title={profile.name}
               sx={{ ...hudHitSx, px: ".55rem", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis",
+                opacity: profile.behaviors.length ? 1 : .4,
                 color: profileId === profile.id ? ORANGE : "rgba(250,248,242,.65)" }}>
               {profile.name}
             </Box>
-            <Box component="button" type="button" aria-label={`Edit ${profile.name}`} onClick={() => editProfile(profile)}
-              sx={{ ...hudHitSx, px: ".35rem", color: CREAM }}>✎</Box>
-            <Box component="button" type="button" aria-label={`Delete ${profile.name}`} onClick={() => deleteProfile(profile)}
-              sx={{ ...hudHitSx, px: ".35rem", color: "#ff746a" }}>×</Box>
+            {profileId === profile.id && profile.behaviors.map((behavior) =>
+              <Box key={behavior.id} component="button" type="button"
+                aria-pressed={behaviorId === behavior.id}
+                onClick={() => set(true, behavior.base, profile.id, behavior.id)}
+                title={`${behavior.name} · ${behavior.base}`}
+                sx={{ ...hudHitSx, px: ".45rem", maxWidth: 100, overflow: "hidden",
+                  textOverflow: "ellipsis", color: behaviorId === behavior.id ? ORANGE : CREAM }}>
+                {behavior.name}
+              </Box>)}
+            <Box component="button" type="button" aria-label={`Edit ${profile.name}`} onClick={() => openProfile(profile)}
+              sx={{ ...hudHitSx, px: ".4rem", color: CREAM }}>⚙</Box>
           </Box>
         ))}
         {enabled && !mission && <Box component="button" type="button" aria-label="Add autonomous profile"
-          onClick={addProfile} sx={{ ...hudHitSx, px: ".55rem", color: ORANGE }}>＋</Box>}
+          onClick={openNew} sx={{ ...hudHitSx, px: ".55rem", color: ORANGE }}>＋</Box>}
         {!mission && <Box sx={{ ...hudHitSx, cursor: "default", px: "0.7rem", minWidth: "8rem", color: "rgba(250,248,242,.72)", fontFamily: MONO, fontSize: "0.58rem" }}>
           {status}
         </Box>}
@@ -604,6 +627,61 @@ function AutonomyPanel() {
         </Box>}
       </Box>
     </HudPlate>
+    {editor && <Box role="dialog" aria-label={editor.id ? "Edit autonomous profile" : "Create autonomous profile"}
+      sx={{ position: "fixed", inset: 0, zIndex: 30, display: "grid", placeItems: "center",
+        background: "rgba(0,0,0,.72)" }}>
+      <Box sx={{ width: 430, maxWidth: "calc(100vw - 2rem)", border: `3px solid ${CREAM}`,
+        background: "#08080c", boxShadow: `6px 6px 0 ${COMIC_INK}`, p: 1.5 }}>
+        <Box sx={{ fontFamily: ANTON, color: ORANGE, letterSpacing: ".08em", mb: 1 }}>
+          {editor.id ? "AUTONOMOUS PROFILE" : "CREATE PROFILE"}
+        </Box>
+        <Box component="input" aria-label="Profile name" value={editor.name}
+          onChange={(event) => setEditor({ ...editor, name: event.target.value })}
+          placeholder="Profile name" sx={{ width: "100%", boxSizing: "border-box", p: .8,
+            border: `1px solid ${CREAM}`, background: "#111", color: CREAM, fontFamily: MONO }} />
+        {editor.id && <>
+          <Box sx={{ fontFamily: MONO, color: "rgba(250,248,242,.55)", fontSize: ".58rem", my: 1 }}>
+            ADD BEHAVIOURS TO THIS PROFILE
+          </Box>
+          {editor.behaviors.map((behavior, index) => <Box key={behavior.id}
+            sx={{ display: "grid", gridTemplateColumns: "1fr 110px 34px", gap: .5, mb: .5 }}>
+            <Box component="input" aria-label={`Behaviour ${index + 1} name`} value={behavior.name}
+              onChange={(event) => setEditor({ ...editor, behaviors: editor.behaviors.map((item) =>
+                item.id === behavior.id ? { ...item, name: event.target.value } : item) })}
+              sx={{ p: .6, border: "1px solid #555", background: "#111", color: CREAM, fontFamily: MONO }} />
+            <Box component="select" aria-label={`Behaviour ${index + 1} template`} value={behavior.base}
+              onChange={(event) => setEditor({ ...editor, behaviors: editor.behaviors.map((item) =>
+                item.id === behavior.id ? { ...item, base: event.target.value } : item) })}
+              sx={{ background: "#111", color: CREAM, border: "1px solid #555", fontFamily: MONO }}>
+              <option value="roam">ROAM</option><option value="chase">CHASE BALL</option>
+            </Box>
+            <Box component="button" type="button" aria-label={`Delete behaviour ${behavior.name}`}
+              onClick={() => setEditor({ ...editor, behaviors: editor.behaviors.filter((item) => item.id !== behavior.id) })}
+              sx={{ border: "1px solid #ff746a", background: "transparent", color: "#ff746a" }}>×</Box>
+          </Box>)}
+          <Box component="button" type="button" onClick={addBehavior}
+            sx={{ width: "100%", border: `1px solid ${ORANGE}`, background: "transparent",
+              color: ORANGE, fontFamily: ANTON, py: .5, mt: .4 }}>＋ ADD BEHAVIOUR</Box>
+        </>}
+        <Box sx={{ display: "flex", gap: .7, mt: 1 }}>
+          <Box component="button" type="button" onClick={() => setEditor(null)}
+            sx={{ flex: 1, border: `1px solid ${CREAM}`, background: "transparent", color: CREAM,
+              fontFamily: ANTON, py: .6 }}>CANCEL</Box>
+          <Box component="button" type="button" disabled={!editor.name.trim()} onClick={saveEditor}
+            sx={{ flex: 1, border: `1px solid ${ORANGE}`, background: ORANGE, color: COMIC_INK,
+              opacity: editor.name.trim() ? 1 : .4, fontFamily: ANTON, py: .6 }}>
+            {editor.id ? "SAVE PROFILE" : "CREATE PROFILE"}
+          </Box>
+        </Box>
+        {editor.id && <Box component="button" type="button"
+          onClick={() => confirmDelete ? deleteEditor() : setConfirmDelete(true)}
+          sx={{ width: "100%", mt: .7, border: "1px solid #ff746a", background: "transparent",
+            color: "#ff746a", fontFamily: ANTON, py: .45 }}>
+          {confirmDelete ? "CONFIRM DELETE PROFILE" : "DELETE PROFILE"}
+        </Box>}
+      </Box>
+    </Box>}
+    </>
   );
 }
 

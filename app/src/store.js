@@ -14,7 +14,13 @@ import { subscribeWithSelector } from "zustand/middleware";
 
 const savedAutonomyProfiles = (() => {
   if (typeof localStorage === "undefined") return [];
-  try { return JSON.parse(localStorage.getItem("microduck-autonomy-profiles") ?? "[]"); }
+  try {
+    const saved = JSON.parse(localStorage.getItem("microduck-autonomy-profiles") ?? "[]");
+    return Array.isArray(saved) ? saved.map((profile) => ({ ...profile,
+      behaviors: Array.isArray(profile.behaviors) ? profile.behaviors
+        : profile.base ? [{ id: `${profile.id}-behavior`, name: profile.name, base: profile.base }] : [],
+    })) : [];
+  }
   catch { return []; }
 })();
 
@@ -48,6 +54,7 @@ export const useGame = create(
     autonomyEnabled: false,
     autonomyMode: "roam", // "roam" | "chase"
     autonomyProfileId: null,
+    autonomyBehaviorId: null,
     autonomyProfiles: Array.isArray(savedAutonomyProfiles) ? savedAutonomyProfiles : [],
     autonomyStatus: "Manual control",
     obstaclePlacement: false,

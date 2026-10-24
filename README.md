@@ -156,10 +156,11 @@ runs whichever Roam or Chase controller the participant selected and developed
 in the Testing Bay, allowing those controller modules to be extended locally
 and tested before entering the mission.
 
-Roam and Chase Ball are locked official controllers. The **+** control creates
-a named autonomous profile based on either controller; user-created profiles
-can be selected, renamed, rebased or deleted and persist in browser storage.
-The selected custom profile is also carried into Mission.
+Roam and Chase Ball are locked official controller templates. The **+** control
+first creates an empty named profile. Its settings button then opens the in-app
+editor where participants can add, rename, rebase or remove profile-specific
+behaviours and delete the profile itself. Profiles persist in browser storage,
+and the selected custom behaviour is carried into Mission.
 
 This browser build is an educational practice environment, not a secure exam
 client. A participant who controls a local source checkout can inspect or alter

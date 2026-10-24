@@ -2626,13 +2626,13 @@ async function boot({ scene, camera, renderer }) {
       reconcileLoco();
     },
     resetSim,
-    setAutonomy: ({ enabled, mode, profileId = null } = {}) => {
+    setAutonomy: ({ enabled, mode, profileId = null, behaviorId = null } = {}) => {
       const nextMode = mode === "chase" ? "chase" : "roam";
       const nextEnabled = store().environmentMode === "mission" ? true : !!enabled;
       autonomousSource.configure({ enabled: nextEnabled, mode: nextMode });
       waypointSource.cancel();
       setStore({ autonomyEnabled: nextEnabled, autonomyMode: nextMode,
-        autonomyProfileId: profileId });
+        autonomyProfileId: profileId, autonomyBehaviorId: behaviorId });
     },
     stopAutonomy: () => {
       if (store().environmentMode === "mission") return;
