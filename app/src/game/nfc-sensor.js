@@ -1,7 +1,7 @@
 // Shared NFC reader surface. The simulator publishes antenna events here;
 // a hardware adapter can publish the same shape without changing lessons/UI.
 const listeners = new Set();
-let state = { enabled: true, head: null, beak: null, tagCount: 0, placing: false, timestamp: 0 };
+let state = { enabled: true, head: null, beak: null, tags: [], tagCount: 0, placing: false, timestamp: 0 };
 
 export function publishNfcState(next) {
   state = { ...state, ...next, timestamp: performance.now() };

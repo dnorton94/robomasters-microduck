@@ -591,6 +591,10 @@ async function boot({ scene, camera, renderer }) {
   const nfcTags = [];
   let nfcPlacement = false;
   const NFC_TAG_LIMIT = 6;
+  const publicNfcTags = () => nfcTags.map(({ id, type, content }) => ({ id, type, content }));
+  const publishNfcTags = (extra = {}) => publishNfcState({
+    tags: publicNfcTags(), tagCount: nfcTags.length, ...extra,
+  });
   function placeNfcTag(hit) {
     if (nfcTags.length >= NFC_TAG_LIMIT) {
       const old = nfcTags.shift();
@@ -606,8 +610,9 @@ async function boot({ scene, camera, renderer }) {
     mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
     scene.add(mesh);
     hit.object.attach(mesh);
-    nfcTags.push({ id: `TAG-${String(number).padStart(2, "0")}`, number, mesh, obstacle: hit.object });
-    publishNfcState({ tagCount: nfcTags.length });
+    nfcTags.push({ id: `TAG-${String(number).padStart(2, "0")}`, number, mesh, obstacle: hit.object,
+      type: "text", content: "" });
+    publishNfcTags();
   }
   function removeTagsForObstacle(obstacle) {
     for (let i = nfcTags.length - 1; i >= 0; i--) {
@@ -618,7 +623,7 @@ async function boot({ scene, camera, renderer }) {
       tag.mesh.material.dispose();
       nfcTags.splice(i, 1);
     }
-    publishNfcState({ tagCount: nfcTags.length });
+    publishNfcTags();
   }
   function clearNfcTags() {
     for (const tag of nfcTags) {
@@ -627,7 +632,16 @@ async function boot({ scene, camera, renderer }) {
       tag.mesh.material.dispose();
     }
     nfcTags.length = 0;
-    publishNfcState({ tagCount: 0, head: null, beak: null });
+    publishNfcTags({ head: null, beak: null });
+  }
+  function updateNfcTag(id, payload) {
+    const tag = nfcTags.find((candidate) => candidate.id === id);
+    if (!tag) return false;
+    const type = ["text", "url", "image"].includes(payload?.type) ? payload.type : tag.type;
+    tag.type = type;
+    tag.content = String(payload?.content ?? "").slice(0, type === "image" ? 2_000_000 : 2048);
+    publishNfcTags();
+    return true;
   }
   function syncObstaclesToPhysics() {
     const pos = data.mocap_pos;
@@ -1885,7 +1899,8 @@ async function boot({ scene, camera, renderer }) {
         tag.mesh.getWorldPosition(_nfcTagWorld);
         const distanceM = point.distanceTo(_nfcTagWorld);
         if (distanceM <= 0.12 && (!found || distanceM < found.distanceM))
-          found = { id: tag.id, distanceM: Math.round(distanceM * 1000) / 1000 };
+          found = { id: tag.id, type: tag.type, content: tag.content,
+            distanceM: Math.round(distanceM * 1000) / 1000 };
       }
       return found;
     };
@@ -1894,7 +1909,7 @@ async function boot({ scene, camera, renderer }) {
       const active = headTag?.id === tag.id || beakTag?.id === tag.id;
       tag.mesh.material.emissive.setHex(active ? 0x22fff0 : 0x073f3b);
     }
-    publishNfcState({ head: headTag, beak: beakTag, tagCount: nfcTags.length });
+    publishNfcState({ head: headTag, beak: beakTag, tags: publicNfcTags(), tagCount: nfcTags.length });
   }
   function syncRig() {
     const qpos = data.qpos;
@@ -2479,6 +2494,7 @@ async function boot({ scene, camera, renderer }) {
       publishNfcState({ placing: nfcPlacement });
     },
     clearNfcTags,
+    updateNfcTag,
     renderPov: (viewRenderer, viewCamera) => {
       // In kinematics.json, body `jaw_soft` carries joint `head_roll` and
       // therefore owns the MJCF head_camera frame.
