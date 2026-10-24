@@ -58,7 +58,7 @@ import { publishTofFrame, tofApi } from "./tof-sensor.js";
 import { publishNfcState, nfcApi } from "./nfc-sensor.js";
 import { publishImuState } from "./imu-sensor.js";
 import { createRedPlateMission, RED_PLATE_SIZE } from "./missions/red-plate.js";
-import { acceptsStageTwoCode, createStageTwoMission, STAGE_TWO_CUBES } from "./missions/stage-two.js";
+import { acceptsStageThreeCode, acceptsStageTwoCode, createStageTwoMission, STAGE_TWO_CUBES } from "./missions/stage-two.js";
 import { setMissionNetworkLock } from "./missions/network-lock.js";
 import { MICRODUCK_HARDWARE } from "./hardware-spec.js";
 import * as fx from "./fx/fx-wireframe.js";
@@ -1529,8 +1529,7 @@ async function boot({ scene, camera, renderer }) {
       stageTwoDecals.push(decal);
     }));
   }
-  function activateMissionStage(code) {
-    if (store().environmentMode !== "mission" || !acceptsStageTwoCode(code)) return false;
+  function startStageTwoRound() {
     clearTimeout(redPlateTimer);
     clearTimeout(redPlateIdleTimer);
     redPlateAvailable = false;
@@ -1540,14 +1539,13 @@ async function boot({ scene, camera, renderer }) {
     const slots = [
       [-0.82, 0.7], [0, 0.96], [0.82, 0.7], [-0.88, -0.42], [0.1, -0.8], [0.88, -0.35],
     ].sort(() => Math.random() - .5).slice(0, 3);
-    const correctCore = STAGE_TWO_CUBES[Math.floor(Math.random() * STAGE_TWO_CUBES.length)].name;
-    stageTwoRound = STAGE_TWO_CUBES.map((cube, index) => {
-      const stable = cube.name === correctCore;
-      return { ...cube, x: slots[index][0], y: slots[index][1],
+    const order = STAGE_TWO_CUBES.map((cube) => cube.name).sort(() => Math.random() - .5);
+    stageTwoRound = STAGE_TWO_CUBES.map((cube, index) => ({
+      ...cube, x: slots[index][0], y: slots[index][1],
         yaw: Math.floor(Math.random() * 4) * Math.PI / 2,
-        payload: `VAULT|CORE=${cube.name}|OUTPUT=${stable ? "STABLE" : "CRITICAL"}|CONTAINMENT=${stable ? "NOMINAL" : "UNSAFE"}` };
-    });
-    stageTwoMission = createStageTwoMission({ correctCore });
+        payload: `VAULT|CORE=${cube.name}|SEQUENCE=${order.indexOf(cube.name) + 1}|TOKEN=${crypto.randomUUID()}`,
+    }));
+    stageTwoMission = createStageTwoMission({ order });
     stageTwoReportQueue.length = 0;
     stageTwoRound.forEach((cube, index) => { obstaclePositions[index] = { x: cube.x, y: cube.y }; });
     obstacleMeshes.slice(0, 3).forEach((mesh, index) => {
@@ -1559,6 +1557,20 @@ async function boot({ scene, camera, renderer }) {
     syncObstaclesToPhysics();
     setStore({ obstacleCount: 3, mission: { stage: 2, status: "active", attempt: 1 } });
     prepareStageTwoCubes(stageTwoRound).catch((error) => console.warn("Stage Two QR preparation failed", error));
+  }
+  function activateMissionStage(code) {
+    if (store().environmentMode !== "mission") return false;
+    if (acceptsStageThreeCode(code)) {
+      clearTimeout(redPlateTimer);
+      clearTimeout(redPlateIdleTimer);
+      redPlateAvailable = false;
+      redPlate.visible = false;
+      clearObstacles();
+      setStore({ mission: { stage: 3, status: "ready", attempt: 1 } });
+      return true;
+    }
+    if (!acceptsStageTwoCode(code)) return false;
+    startStageTwoRound();
     return true;
   }
 
@@ -2186,6 +2198,7 @@ async function boot({ scene, camera, renderer }) {
         if (now - stageTwoReportQueue[i].at >= 600 || observations.some((item) => item.scanVisible))
           stageTwoReportQueue.splice(i, 1);
       if (result.changed || result.event) setStore({ mission: { stage: 2, ...result.state, attempt: 1 } });
+      if (result.event === "wrong-order") startStageTwoRound();
       return;
     }
     if (!redPlateAvailable) return;

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { gameApi, useGame } from "../store.js";
 import { ANTON, COMIC_INK, CREAM } from "./comic.jsx";
 import { MONO, ORANGE } from "../theme.js";
-import { STAGE_TWO_CODE } from "../game/missions/stage-two.js";
+import { STAGE_THREE_CODE, STAGE_TWO_CODE } from "../game/missions/stage-two.js";
 
 const plateFlash = keyframes`
   0%, 100% { opacity: .08; }
@@ -62,6 +62,14 @@ export default function MissionPanel() {
     {mission.stage === 2 && mission.status === "success" && <Box role="status"
       sx={{ position: "fixed", zIndex: 20, left: "50%", top: "18%", transform: "translateX(-50%)",
         p: 2, border: "3px solid #38ef91", background: "rgba(7,8,12,.96)", color: "#38ef91",
-        fontFamily: ANTON, fontSize: "1.3rem", letterSpacing: ".08em" }}>STAGE TWO COMPLETE</Box>}
+        fontFamily: ANTON, textAlign: "center", fontSize: "1.3rem", letterSpacing: ".08em" }}>
+      STAGE TWO COMPLETE
+      <Box sx={{ mt: 1, p: .8, border: `1px solid ${ORANGE}`, color: ORANGE,
+        fontFamily: MONO, fontSize: ".9rem" }}>{STAGE_THREE_CODE}</Box>
+    </Box>}
+    {mission.stage === 3 && <Box role="status" sx={{ position: "fixed", zIndex: 9, top: 82, left: "50%",
+      transform: "translateX(-50%)", px: 1.4, py: .7, border: `2px solid ${ORANGE}`,
+      background: "rgba(7,8,12,.88)", color: CREAM, fontFamily: MONO, fontSize: ".68rem",
+      letterSpacing: ".06em" }}>STAGE THREE · AWAITING MISSION BRIEF</Box>}
   </>;
 }
