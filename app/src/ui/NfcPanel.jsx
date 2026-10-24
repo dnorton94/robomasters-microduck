@@ -41,14 +41,14 @@ export default function NfcPanel() {
         <Box component="button" type="button" onClick={() => gameApi.setNfcPlacement?.(!nfc.placing)}
           sx={{ flex: 1, border: `1px solid ${ORANGE}`, background: nfc.placing ? ORANGE : "transparent",
             color: nfc.placing ? COMIC_INK : CREAM, fontFamily: ANTON, cursor: "pointer", py: .4 }}>
-          {nfc.placing ? "CLICK ARENA" : "PLACE TAG"}
+          {nfc.placing ? "CLICK CUBE" : "PLACE TAG"}
         </Box>
         <Box component="button" type="button" disabled={!nfc.tagCount} onClick={() => gameApi.clearNfcTags?.()}
           sx={{ border: `1px solid ${CREAM}`, background: "transparent", color: CREAM,
             fontFamily: ANTON, cursor: "pointer", opacity: nfc.tagCount ? 1 : .35 }}>CLEAR</Box>
       </Box>
       <Box sx={{ mt: .5, fontFamily: MONO, fontSize: ".48rem", color: "rgba(250,248,242,.48)" }}>
-        {nfc.tagCount}/6 TAGS · MOVE VERY CLOSE TO READ
+        {nfc.tagCount}/6 TAGS · ATTACH TO A CUBE SURFACE
       </Box>
     </Box>
   );

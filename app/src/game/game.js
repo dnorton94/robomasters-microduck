@@ -49,6 +49,7 @@ import { GamepadSource } from "./controls/gamepad.js";
 import { haptics } from "./haptics.js";
 import { TouchSource } from "./controls/touch.js";
 import { WaypointSource } from "./controls/waypoint.js";
+import { PolicyPreviewSource } from "./controls/policy-preview.js";
 import { AutonomousSource } from "./autonomy/autonomous-source.js";
 import { createSimPerception } from "./autonomy/perception.js";
 import { publishTofFrame, tofApi } from "./tof-sensor.js";
@@ -545,9 +546,12 @@ async function boot({ scene, camera, renderer }) {
     manualActive,
     onStatus: (autonomyStatus) => setStore({ autonomyStatus }),
   });
+  const policyPreviewSource = new PolicyPreviewSource({
+    getVelocityLimits: () => velLims(), manualActive,
+  });
   // Physical inputs always win. Autonomy then shares the exact same command
   // path as click-to-walk/manual control; waypoint remains the idle fallback.
-  const controller = new Controller({ sources: [padSource, touchSource, kbSource, autonomousSource, waypointSource] });
+  const controller = new Controller({ sources: [padSource, touchSource, kbSource, policyPreviewSource, autonomousSource, waypointSource] });
   // Right-stick camera state, read by the telemetry before the camera-orbit
   // section below has evaluated.
   let padOrbitLive = false;
@@ -587,7 +591,7 @@ async function boot({ scene, camera, renderer }) {
   const nfcTags = [];
   let nfcPlacement = false;
   const NFC_TAG_LIMIT = 6;
-  function placeNfcTag(x, y) {
+  function placeNfcTag(hit) {
     if (nfcTags.length >= NFC_TAG_LIMIT) {
       const old = nfcTags.shift();
       scene.remove(old.mesh);
@@ -597,15 +601,28 @@ async function boot({ scene, camera, renderer }) {
     const number = nfcTags.length ? Math.max(...nfcTags.map((t) => t.number)) + 1 : 1;
     const material = new THREE.MeshStandardMaterial({ color: 0x20d6c7, emissive: 0x073f3b, side: THREE.DoubleSide });
     const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.008, 24), material);
-    mesh.rotation.z = Math.PI / 2;
-    mesh.position.set(x, 0.12, -y);
+    const normal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize();
+    mesh.position.copy(hit.point).addScaledVector(normal, 0.006);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
     scene.add(mesh);
-    nfcTags.push({ id: `TAG-${String(number).padStart(2, "0")}`, number, mesh });
+    hit.object.attach(mesh);
+    nfcTags.push({ id: `TAG-${String(number).padStart(2, "0")}`, number, mesh, obstacle: hit.object });
+    publishNfcState({ tagCount: nfcTags.length });
+  }
+  function removeTagsForObstacle(obstacle) {
+    for (let i = nfcTags.length - 1; i >= 0; i--) {
+      const tag = nfcTags[i];
+      if (tag.obstacle !== obstacle) continue;
+      tag.mesh.removeFromParent();
+      tag.mesh.geometry.dispose();
+      tag.mesh.material.dispose();
+      nfcTags.splice(i, 1);
+    }
     publishNfcState({ tagCount: nfcTags.length });
   }
   function clearNfcTags() {
     for (const tag of nfcTags) {
-      scene.remove(tag.mesh);
+      tag.mesh.removeFromParent();
       tag.mesh.geometry.dispose();
       tag.mesh.material.dispose();
     }
@@ -631,6 +648,7 @@ async function boot({ scene, camera, renderer }) {
   function placeObstacle(x, y) {
     let index = obstaclePositions.findIndex((p) => !p);
     if (index < 0) index = 0; // cycle the oldest slot once all eight are used
+    if (obstacleMeshes[index]) removeTagsForObstacle(obstacleMeshes[index]);
     const lim = ARENA_HALF - OBSTACLE_SIZE / 2 - 0.04;
     obstaclePositions[index] = {
       x: Math.min(lim, Math.max(-lim, x)),
@@ -640,6 +658,7 @@ async function boot({ scene, camera, renderer }) {
     setStore({ obstacleCount: obstaclePositions.filter(Boolean).length });
   }
   function clearObstacles() {
+    clearNfcTags();
     obstaclePositions.fill(null);
     syncObstaclesToPhysics();
     setStore({ obstacleCount: 0 });
@@ -1737,11 +1756,18 @@ async function boot({ scene, camera, renderer }) {
     if ((!obstaclePlacement && !nfcPlacement) || inputLocked || e.target !== renderer.domElement ||
         e.pointerType !== "mouse" || e.button !== 0) return;
     grabRayFrom(e);
+    if (nfcPlacement) {
+      const hit = _grabRaycaster.intersectObjects(obstacleMeshes, false).find((item) => item.object.visible);
+      if (!hit) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      placeNfcTag(hit);
+      return;
+    }
     if (!_grabRaycaster.ray.intersectPlane(obstaclePlane, obstacleHit)) return;
     e.preventDefault();
     e.stopImmediatePropagation();
-    if (nfcPlacement) placeNfcTag(obstacleHit.x, -obstacleHit.z);
-    else placeObstacle(obstacleHit.x, -obstacleHit.z);
+    placeObstacle(obstacleHit.x, -obstacleHit.z);
   }, true);
 
   // Waypoint marker: hairline tron reticle at the clicked floor point
@@ -1776,6 +1802,7 @@ async function boot({ scene, camera, renderer }) {
   const _tofFrame = Array(64).fill(null);
   const _nfcHead = new THREE.Vector3();
   const _nfcBeak = new THREE.Vector3();
+  const _nfcTagWorld = new THREE.Vector3();
   let nfcLastAt = -Infinity;
   const _tofTargets = [
     ...wallMeshes, ...obstacleMeshes, ballMesh,
@@ -1820,7 +1847,8 @@ async function boot({ scene, camera, renderer }) {
     const nearest = (point) => {
       let found = null;
       for (const tag of nfcTags) {
-        const distanceM = point.distanceTo(tag.mesh.position);
+        tag.mesh.getWorldPosition(_nfcTagWorld);
+        const distanceM = point.distanceTo(_nfcTagWorld);
         if (distanceM <= 0.12 && (!found || distanceM < found.distanceM))
           found = { id: tag.id, distanceM: Math.round(distanceM * 1000) / 1000 };
       }
@@ -2288,13 +2316,14 @@ async function boot({ scene, camera, renderer }) {
 
   // Roller-only one-shot: crouch, glide low, stand back up (phase-driven).
   function triggerCrouch(source = "kb") {
-    if (inputLocked || mode !== "walk" || locoSwitching || recovery) return;
+    if (loco !== "rollers" || inputLocked || mode !== "walk" || locoSwitching || recovery) return false;
     exitHeadMode();
     clearModeTimers();
     mode = "crouch";
     crouchRun = { phase: 0 };
     syncButtons();
     stickers?.pop("roll");
+    return true;
   }
 
   // One-shot ground pick (runtime A button): peck the ground and stand
@@ -2378,7 +2407,10 @@ async function boot({ scene, camera, renderer }) {
       autonomousSource.stop();
       setStore({ autonomyEnabled: false, autonomyStatus: "Manual control" });
       switch (name) {
-        case "walk": return setMode("walk");
+        case "walk":
+          setMode("walk");
+          policyPreviewSource.start();
+          return true;
         case "sit": {
           const sitting = mode === "sitstand" && sitFlag === 1;
           return setMode(sitting ? "walk" : "sit");
@@ -2453,7 +2485,7 @@ async function boot({ scene, camera, renderer }) {
     get sitFlag() { return sitFlag; },
     buildObs, cmd,
     velCmd: kbSource.command, lastAction, resetSim,
-    controller, kbSource, padSource,
+    controller, kbSource, padSource, policyPreviewSource,
     spawnBall, triggerKick, triggerRoll, sessions, ort,
     loadCustomPolicy: loadCustomPolicyIntoGame,
     clearCustomPolicy: revertCustomPolicy,
