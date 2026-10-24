@@ -2697,9 +2697,11 @@ async function boot({ scene, camera, renderer }) {
       head.getWorldQuaternion(_povQuat);
       _povForward.set(0, 0, -1).applyQuaternion(_povQuat).normalize();
       _povUp.set(1, 0, 0).applyQuaternion(_povQuat).normalize();
-      viewCamera.position.copy(_povPos);
+      // Put the render eye just beyond the lens cover. The small sensor card
+      // hid edge clipping that becomes visible at a full-screen aspect ratio.
+      viewCamera.position.copy(_povPos).addScaledVector(_povForward, 0.045);
       viewCamera.up.copy(_povUp);
-      _povLook.copy(_povPos).addScaledVector(_povForward, 1);
+      _povLook.copy(viewCamera.position).addScaledVector(_povForward, 1);
       viewCamera.lookAt(_povLook);
       // The decimated visual shell is opaque across the physical lens
       // opening. Hide only this robot during the sensor render so its own

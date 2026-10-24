@@ -91,6 +91,10 @@ the dashboard does not reset sensor readings, microphone permission or the
 individual visibility choices; showing it restores the previous state.
 Every sensor card can also be hidden and restored independently.
 
+The **First person / Third person** control switches the whole arena view to
+the existing MicroDuck head camera and back. It remains available in both the
+Testing Bay and Mission, even when the sensor dashboard is hidden.
+
 A live **Robot POV** inset renders from MicroDuck's head so learners can
 compare its egocentric view with the normal third-person camera. The inset
 can be hidden and restored without changing robot control. Its renderer is
