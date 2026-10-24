@@ -49,6 +49,12 @@ export const useGame = create(
     environmentMode: "testing", // "testing" | "mission"
     povEnabled: true,
     microphone: { status: "off", level: 0, error: null },
+    microphoneVisible: true,
+    imu: {
+      body: { enabled: true, acceleration: [0, 0, 0], angularVelocity: [0, 0, 0], orientation: [0, 0, 0] },
+      head: { enabled: true, acceleration: [0, 0, 0], angularVelocity: [0, 0, 0], orientation: [0, 0, 0] },
+      timestamp: 0,
+    },
     tof: { enabled: true, width: 8, height: 8, rangeM: 2, hz: 10,
       timestamp: 0, distancesM: Array(64).fill(null) },
     nfc: { enabled: true, head: null, beak: null, tags: [], tagCount: 0, placing: false, timestamp: 0 },

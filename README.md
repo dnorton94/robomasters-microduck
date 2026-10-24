@@ -89,6 +89,7 @@ to their MuJoCo collision geometry.
 The top-right **Sensors** button toggles the complete sensor dashboard. Hiding
 the dashboard does not reset sensor readings, microphone permission or the
 individual visibility choices; showing it restores the previous state.
+Every sensor card can also be hidden and restored independently.
 
 A live **Robot POV** inset renders from MicroDuck's head so learners can
 compare its egocentric view with the normal third-person camera. The inset
@@ -109,20 +110,21 @@ numbers as a near-orange/far-blue grid, while extensions can consume the same
 data through `tofApi` or `window.__microduckTof`.
 
 The **NFC** panel models the two antennas found on the real robot: one in the
-head and one in the beak. Select **Place tag**, click the arena to add a tag,
+head and one in the beak. Select **Place tag**, click a cube surface to add a tag,
 and move the duck very close to it. The panel reports the tag ID independently
 for each antenna and highlights a tag when read. Up to six tags can be placed;
 **Clear** removes them. Extensions can subscribe through `nfcApi` or
 `window.__microduckNfc`.
 
-The sensor adapters intentionally sit behind small publish/subscribe APIs.
-Simulator geometry currently supplies depth and NFC readings, but a real
-camera, ToF, NFC or microphone source can replace that input without rewriting
-the display or autonomous controller.
+The **Body IMU** and **Head IMU** cards expose each unit's three-axis
+accelerometer, three-axis gyroscope and roll/pitch/yaw orientation at 10 Hz.
+The body values come directly from MuJoCo's IMU sensors; the articulated head
+values are derived from its simulated pose. Extensions can subscribe through
+`imuApi` or `window.__microduckImu`.
 
-The real MicroDuck hardware also includes two IMUs, motor-position feedback,
-a speaker, Wi-Fi, Bluetooth and an onboard AI accelerator. The ToF and NFC
-implementations here are educational simulations rather than hardware drivers.
+The sensor adapters intentionally sit behind small publish/subscribe APIs so
+real camera, ToF, NFC, IMU or microphone sources can replace the simulation
+inputs without rewriting the displays or autonomous controller.
 
 In roller mode the legs-only actions (kicks, sit) are disabled and their
 hints fade out; play the ball by driving into it.

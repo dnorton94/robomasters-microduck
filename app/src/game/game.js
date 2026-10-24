@@ -54,6 +54,7 @@ import { AutonomousSource } from "./autonomy/autonomous-source.js";
 import { createSimPerception } from "./autonomy/perception.js";
 import { publishTofFrame, tofApi } from "./tof-sensor.js";
 import { publishNfcState, nfcApi } from "./nfc-sensor.js";
+import { publishImuState } from "./imu-sensor.js";
 import * as fx from "./fx/fx-wireframe.js";
 import { createWaypointMarker } from "./fx/waypoint-marker.js";
 import { createCeremony, CAM_RESET_S } from "./ceremony.js";
@@ -480,6 +481,8 @@ async function boot({ scene, camera, renderer }) {
       qposAdr: JOINT_NAMES.map((n) => model.jnt(n).qposadr),
       dofAdr: JOINT_NAMES.map((n) => model.jnt(n).dofadr),
       gyroAdr: model.sensor("imu_ang_vel").adr,
+      accelAdr: model.sensor("imu_accel").adr,
+      orientationAdr: model.sensor("orientation").adr,
       trunkId: mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY.value, "trunk_base"),
       standKeyId: mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_KEY.value, "STAND"),
       ballQposAdr: model.jnt("ball_freejoint").qposadr,
@@ -498,7 +501,7 @@ async function boot({ scene, camera, renderer }) {
     };
   }
   // Active-variant address block, swapped wholesale by activateLoco.
-  let { qposAdr, dofAdr, gyroAdr, trunkId, standKeyId, ballQposAdr, ballDofAdr, obstacleMocapIds, extraJoints,
+  let { qposAdr, dofAdr, gyroAdr, accelAdr, orientationAdr, trunkId, standKeyId, ballQposAdr, ballDofAdr, obstacleMocapIds, extraJoints,
     ankleIds } = resolveAddrs(model, k);
 
   // Locomotion variants stay resident once built (model + data + rig +
@@ -1391,7 +1394,7 @@ async function boot({ scene, camera, renderer }) {
   let trunkGroup = rig.bodies.get("trunk_base");
   locos.legs = {
     model, data, rig, trunkGroup,
-    qposAdr, dofAdr, gyroAdr, trunkId, standKeyId, ballQposAdr, ballDofAdr, obstacleMocapIds, extraJoints,
+    qposAdr, dofAdr, gyroAdr, accelAdr, orientationAdr, trunkId, standKeyId, ballQposAdr, ballDofAdr, obstacleMocapIds, extraJoints,
   };
 
   // ── Locomotion variant switching (legs <-> rollers) ──────────────────
@@ -1447,12 +1450,13 @@ async function boot({ scene, camera, renderer }) {
     const L = locos[name];
     loco = name;
     scene.remove(rig.placer);
-    ({ model, data, rig, trunkGroup, qposAdr, dofAdr, gyroAdr, trunkId,
+    ({ model, data, rig, trunkGroup, qposAdr, dofAdr, gyroAdr, accelAdr, orientationAdr, trunkId,
        standKeyId, ballQposAdr, ballDofAdr, obstacleMocapIds, extraJoints, ankleIds } = L);
     syncObstaclesToPhysics();
     // The rig may have been built (or last shown) under another colourway.
     applyVariant(rig, currentVariant);
     scene.add(rig.placer);
+    imuPrimed = false;
     setStore({ loco: name });
     resetSim();
   }
@@ -1866,6 +1870,17 @@ async function boot({ scene, camera, renderer }) {
   const _nfcBeak = new THREE.Vector3();
   const _nfcTagWorld = new THREE.Vector3();
   let nfcLastAt = -Infinity;
+  const _imuQuat = new THREE.Quaternion();
+  const _imuEuler = new THREE.Euler(0, 0, 0, "XYZ");
+  const _headImuPos = new THREE.Vector3();
+  const _headImuPrevPos = new THREE.Vector3();
+  const _headImuVelocity = new THREE.Vector3();
+  const _headImuPrevVelocity = new THREE.Vector3();
+  const _headImuPrevEuler = new THREE.Euler();
+  let imuLastAt = -Infinity;
+  let imuPrimed = false;
+  const round3 = (value) => Math.round(value * 1000) / 1000;
+  const angleDelta = (next, prev) => Math.atan2(Math.sin(next - prev), Math.cos(next - prev));
   const _tofTargets = [
     ...wallMeshes, ...obstacleMeshes, ballMesh,
     ...Object.values(propGroups).flat(),
@@ -1923,6 +1938,50 @@ async function boot({ scene, camera, renderer }) {
       tag.mesh.material.emissive.setHex(active ? 0x22fff0 : 0x073f3b);
     }
     publishNfcState({ head: headTag, beak: beakTag, tags: publicNfcTags(), tagCount: nfcTags.length });
+  }
+  function updateImuSensors(now) {
+    if (now - imuLastAt < 100) return;
+    const dt = Math.min(0.25, Math.max(0.001, (now - imuLastAt) / 1000));
+    imuLastAt = now;
+    const sens = data.sensordata;
+    _imuQuat.set(sens[orientationAdr + 1], sens[orientationAdr + 2], sens[orientationAdr + 3],
+      sens[orientationAdr]).normalize();
+    _imuEuler.setFromQuaternion(_imuQuat, "XYZ");
+    const deg = 180 / Math.PI;
+    const body = {
+      acceleration: [0, 1, 2].map((axis) => round3(sens[accelAdr + axis])),
+      angularVelocity: [0, 1, 2].map((axis) => round3(sens[gyroAdr + axis])),
+      orientation: [_imuEuler.x, _imuEuler.y, _imuEuler.z].map((value) => round3(value * deg)),
+    };
+
+    const headBody = rig.bodies.get("jaw_soft") ?? rig.bodies.get("yaw_roll_motion") ?? trunkGroup;
+    headBody.getWorldPosition(_headImuPos);
+    headBody.getWorldQuaternion(_imuQuat);
+    _imuEuler.setFromQuaternion(_imuQuat, "XYZ");
+    let acceleration = [0, 0, 0];
+    let angularVelocity = [0, 0, 0];
+    if (imuPrimed) {
+      _headImuVelocity.copy(_headImuPos).sub(_headImuPrevPos).divideScalar(dt);
+      acceleration = [
+        (_headImuVelocity.x - _headImuPrevVelocity.x) / dt,
+        (_headImuVelocity.y - _headImuPrevVelocity.y) / dt + 9.81,
+        (_headImuVelocity.z - _headImuPrevVelocity.z) / dt,
+      ].map(round3);
+      angularVelocity = [
+        angleDelta(_imuEuler.x, _headImuPrevEuler.x) / dt,
+        angleDelta(_imuEuler.y, _headImuPrevEuler.y) / dt,
+        angleDelta(_imuEuler.z, _headImuPrevEuler.z) / dt,
+      ].map(round3);
+    }
+    _headImuPrevPos.copy(_headImuPos);
+    _headImuPrevVelocity.copy(_headImuVelocity);
+    _headImuPrevEuler.copy(_imuEuler);
+    imuPrimed = true;
+    publishImuState({ body, head: {
+      acceleration,
+      angularVelocity,
+      orientation: [_imuEuler.x, _imuEuler.y, _imuEuler.z].map((value) => round3(value * deg)),
+    } }, now);
   }
   function syncRig() {
     const qpos = data.qpos;
@@ -2216,6 +2275,7 @@ async function boot({ scene, camera, renderer }) {
     const sensorNow = performance.now();
     updateTofSensor(sensorNow);
     updateNfcSensors(sensorNow);
+    updateImuSensors(sensorNow);
     syncJaw();
     ghosts?.update();
     // Spatial audio follows the movers: listener on the camera, emitters
