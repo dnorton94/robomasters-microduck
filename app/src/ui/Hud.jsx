@@ -273,6 +273,42 @@ function PoliciesButton() {
   );
 }
 
+function EnvironmentButton() {
+  const mode = useGame((s) => s.environmentMode);
+  const mission = mode === "mission";
+  const toggle = () => {
+    const next = mission ? "testing" : "mission";
+    uiClick();
+    useGame.setState({ environmentMode: next, policiesVisible: false });
+    gameApi.setEnvironmentMode?.(next);
+  };
+  return (
+    <HudPlate caption="Area" captionSide="right"
+      sx={{ position: "fixed", top: "1.25rem", right: "17.15rem", zIndex: 10 }}>
+      <Box component="button" type="button" aria-pressed={mission}
+        aria-label={`Switch to ${mission ? "Testing Bay" : "Mission"}`}
+        onClick={toggle}
+        sx={{ ...hudHitSx, minWidth: 112, background: mission ? ORANGE : "transparent",
+          color: mission ? COMIC_INK : CREAM }}>
+        {mission ? "Mission" : "Testing Bay"}
+      </Box>
+    </HudPlate>
+  );
+}
+
+function MissionBanner() {
+  const mission = useGame((s) => s.environmentMode === "mission");
+  if (!mission) return null;
+  return (
+    <Box role="status" sx={{ position: "fixed", top: "5.25rem", left: "50%", zIndex: 9,
+      transform: "translateX(-50%)", border: `2px solid ${ORANGE}`,
+      background: "rgba(3,8,14,.86)", color: CREAM, boxShadow: `3px 3px 0 ${COMIC_INK}`,
+      px: 1.4, py: .55, fontFamily: MONO, fontSize: ".58rem", letterSpacing: ".12em" }}>
+      MISSION MODE · THE VAULT
+    </Box>
+  );
+}
+
 const OFFICIAL_POLICIES = [
   { id: "walk", label: "Walk / Drive", checkpoint: "BEST_alpha_walking.onnx", loco: "both" },
   { id: "sit", label: "Sit / Stand", checkpoint: "BEST_alpha_sitstand.onnx", loco: "legs" },
@@ -737,6 +773,8 @@ export default function Hud() {
       <BackButton />
       <SensorsButton />
       <PoliciesButton />
+      <EnvironmentButton />
+      <MissionBanner />
       <PoliciesPanel />
       {!touchMode && (
         <>

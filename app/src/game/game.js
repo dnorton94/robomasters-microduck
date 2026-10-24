@@ -1357,6 +1357,19 @@ async function boot({ scene, camera, renderer }) {
   reliefGridMat = grid.material; // relief drive mirrors uTopoScale into it
   const { wallMats, wallMeshes } = makeArenaWalls();
   for (const m of wallMeshes) scene.add(m);
+  function setEnvironmentMode(mode) {
+    const mission = mode === "mission";
+    const cell = mission ? 0x405568 : 0x8e8371;
+    const section = mission ? 0x35e6c4 : 0xffb366;
+    scene.background.setHex(mission ? 0x03080e : 0x08080c);
+    renderer.setClearColor(mission ? 0x03080e : 0x08080c, 1);
+    grid.material.uniforms.uCellColor.value.setHex(cell);
+    grid.material.uniforms.uSectionColor.value.setHex(section);
+    for (const material of wallMats) {
+      material.uniforms.uCellColor.value.setHex(cell);
+      material.uniforms.uSectionColor.value.setHex(section);
+    }
+  }
   const obstacleMaterial = new THREE.MeshStandardMaterial({
     color: 0xff7a2f, roughness: 0.72, metalness: 0.05,
   });
@@ -2495,6 +2508,7 @@ async function boot({ scene, camera, renderer }) {
     },
     clearNfcTags,
     updateNfcTag,
+    setEnvironmentMode,
     renderPov: (viewRenderer, viewCamera) => {
       // In kinematics.json, body `jaw_soft` carries joint `head_roll` and
       // therefore owns the MJCF head_camera frame.
