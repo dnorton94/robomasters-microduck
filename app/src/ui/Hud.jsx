@@ -521,9 +521,41 @@ function AutonomyPanel() {
   const enabled = useGame((s) => s.autonomyEnabled);
   const mode = useGame((s) => s.autonomyMode);
   const status = useGame((s) => s.autonomyStatus);
-  const set = (nextEnabled, nextMode = mode) => {
+  const profiles = useGame((s) => s.autonomyProfiles);
+  const profileId = useGame((s) => s.autonomyProfileId);
+  const persistProfiles = (next, nextProfileId = profileId) => {
+    localStorage.setItem("microduck-autonomy-profiles", JSON.stringify(next));
+    useGame.setState({ autonomyProfiles: next, autonomyProfileId: nextProfileId });
+  };
+  const set = (nextEnabled, nextMode = mode, nextProfileId = null) => {
     uiClick();
-    gameApi.setAutonomy?.({ enabled: nextEnabled, mode: nextMode });
+    gameApi.setAutonomy?.({ enabled: nextEnabled, mode: nextMode, profileId: nextProfileId });
+  };
+  const addProfile = () => {
+    const name = window.prompt("Name this autonomous profile:", "My autonomous mode")?.trim();
+    if (!name) return;
+    const answer = window.prompt("Base controller: roam or chase", "roam")?.trim().toLowerCase();
+    const base = answer === "chase" ? "chase" : "roam";
+    const profile = { id: crypto.randomUUID?.() ?? String(Date.now()), name, base };
+    const next = [...profiles, profile];
+    persistProfiles(next, profile.id);
+    set(true, base, profile.id);
+  };
+  const editProfile = (profile) => {
+    const name = window.prompt("Profile name:", profile.name)?.trim();
+    if (!name) return;
+    const answer = window.prompt("Base controller: roam or chase", profile.base)?.trim().toLowerCase();
+    const base = answer === "chase" ? "chase" : "roam";
+    const next = profiles.map((item) => item.id === profile.id ? { ...item, name, base } : item);
+    persistProfiles(next);
+    if (profileId === profile.id) set(true, base, profile.id);
+  };
+  const deleteProfile = (profile) => {
+    if (!window.confirm(`Delete autonomous profile “${profile.name}”?`)) return;
+    const next = profiles.filter((item) => item.id !== profile.id);
+    const wasActive = profileId === profile.id;
+    persistProfiles(next, wasActive ? null : profileId);
+    if (wasActive) set(true, "roam", null);
   };
   return (
     <HudPlate caption="Pilot">
@@ -541,11 +573,27 @@ function AutonomyPanel() {
           ["roam", "Roam"], ["chase", "Chase ball"],
         ].map(([value, label]) => (
           <Box key={value} component="button" type="button" aria-pressed={mode === value}
-            onClick={() => set(true, value)}
+            onClick={() => set(true, value, null)}
             sx={{ ...hudHitSx, px: "0.65rem", color: mode === value ? ORANGE : "rgba(250,248,242,.65)" }}>
             {label}
           </Box>
         ))}
+        {enabled && !mission && profiles.map((profile) => (
+          <Box key={profile.id} sx={{ display: "inline-flex", borderLeft: "1px solid rgba(250,248,242,.18)" }}>
+            <Box component="button" type="button" aria-pressed={profileId === profile.id}
+              onClick={() => set(true, profile.base, profile.id)} title={`${profile.name} · based on ${profile.base}`}
+              sx={{ ...hudHitSx, px: ".55rem", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis",
+                color: profileId === profile.id ? ORANGE : "rgba(250,248,242,.65)" }}>
+              {profile.name}
+            </Box>
+            <Box component="button" type="button" aria-label={`Edit ${profile.name}`} onClick={() => editProfile(profile)}
+              sx={{ ...hudHitSx, px: ".35rem", color: CREAM }}>✎</Box>
+            <Box component="button" type="button" aria-label={`Delete ${profile.name}`} onClick={() => deleteProfile(profile)}
+              sx={{ ...hudHitSx, px: ".35rem", color: "#ff746a" }}>×</Box>
+          </Box>
+        ))}
+        {enabled && !mission && <Box component="button" type="button" aria-label="Add autonomous profile"
+          onClick={addProfile} sx={{ ...hudHitSx, px: ".55rem", color: ORANGE }}>＋</Box>}
         {!mission && <Box sx={{ ...hudHitSx, cursor: "default", px: "0.7rem", minWidth: "8rem", color: "rgba(250,248,242,.72)", fontFamily: MONO, fontSize: "0.58rem" }}>
           {status}
         </Box>}

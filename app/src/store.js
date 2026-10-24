@@ -12,6 +12,12 @@
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 
+const savedAutonomyProfiles = (() => {
+  if (typeof localStorage === "undefined") return [];
+  try { return JSON.parse(localStorage.getItem("microduck-autonomy-profiles") ?? "[]"); }
+  catch { return []; }
+})();
+
 export const useGame = create(
   subscribeWithSelector(() => ({
     // Boot lifecycle
@@ -41,6 +47,8 @@ export const useGame = create(
     ballActive: false,
     autonomyEnabled: false,
     autonomyMode: "roam", // "roam" | "chase"
+    autonomyProfileId: null,
+    autonomyProfiles: Array.isArray(savedAutonomyProfiles) ? savedAutonomyProfiles : [],
     autonomyStatus: "Manual control",
     obstaclePlacement: false,
     obstacleCount: 0,

@@ -151,6 +151,16 @@ early plate exit removes the target, starts a fresh attempt and relocates it.
 The plate is also excluded from simulated ToF returns because it is flush with
 the floor rather than an obstacle.
 
+Mission locks autonomous control on but does not replace its configuration. It
+runs whichever Roam or Chase controller the participant selected and developed
+in the Testing Bay, allowing those controller modules to be extended locally
+and tested before entering the mission.
+
+Roam and Chase Ball are locked official controllers. The **+** control creates
+a named autonomous profile based on either controller; user-created profiles
+can be selected, renamed, rebased or deleted and persist in browser storage.
+The selected custom profile is also carried into Mission.
+
 This browser build is an educational practice environment, not a secure exam
 client. A participant who controls a local source checkout can inspect or alter
 any client-side rule. Official results should therefore be validated by a

@@ -1451,8 +1451,11 @@ async function boot({ scene, camera, renderer }) {
       publishNfcState({ placing: false });
       ball?.hideImmediately({ parkPhysics: parkBallPhysics });
       ballActive = false;
-      autonomousSource.configure({ enabled: true, mode: "roam" });
-      setStore({ autonomyEnabled: true, autonomyMode: "roam", policiesVisible: false,
+      // Mission locks autonomy on but runs the controller configuration the
+      // participant prepared and tested in the Testing Bay. Their additions
+      // to either Roam or Chase therefore carry into the assessment unchanged.
+      autonomousSource.configure({ enabled: true, mode: store().autonomyMode });
+      setStore({ autonomyEnabled: true, policiesVisible: false,
         obstaclePlacement: false, ballActive: false });
       relocateRedPlate({ delay: 0, increment: false });
     } else if (ball && !ballActive) {
@@ -2623,12 +2626,13 @@ async function boot({ scene, camera, renderer }) {
       reconcileLoco();
     },
     resetSim,
-    setAutonomy: ({ enabled, mode } = {}) => {
+    setAutonomy: ({ enabled, mode, profileId = null } = {}) => {
       const nextMode = mode === "chase" ? "chase" : "roam";
       const nextEnabled = store().environmentMode === "mission" ? true : !!enabled;
       autonomousSource.configure({ enabled: nextEnabled, mode: nextMode });
       waypointSource.cancel();
-      setStore({ autonomyEnabled: nextEnabled, autonomyMode: nextMode });
+      setStore({ autonomyEnabled: nextEnabled, autonomyMode: nextMode,
+        autonomyProfileId: profileId });
     },
     stopAutonomy: () => {
       if (store().environmentMode === "mission") return;
