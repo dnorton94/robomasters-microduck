@@ -1669,6 +1669,9 @@ async function boot({ scene, camera, renderer }) {
   const _grabPlane = new THREE.Plane();
   const _grabHit = new THREE.Vector3();
   const _grabCamDir = new THREE.Vector3();
+  const _cubeDragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -OBSTACLE_SIZE / 2);
+  const _cubeDragHit = new THREE.Vector3();
+  let cubeDrag = null;
   function grabRayFrom(e) {
     const r = renderer.domElement.getBoundingClientRect();
     _grabNdc.set(
@@ -1685,6 +1688,10 @@ async function boot({ scene, camera, renderer }) {
     }
     return ballHit ? { kind: "ball", point: ballHit.point } : null;
   }
+  function cubePick() {
+    return _grabRaycaster.intersectObjects(obstacleMeshes, false)
+      .find((item) => item.object.visible);
+  }
   function updateGrabTarget() {
     if (!_grabRaycaster.ray.intersectPlane(_grabPlane, _grabHit)) return;
     const lim = ARENA_HALF - 0.05;
@@ -1694,8 +1701,9 @@ async function boot({ scene, camera, renderer }) {
     grab.target[2] = Math.min(GRAB_TARGET_ZMAX, Math.max(GRAB_TARGET_ZMIN, _grabHit.y));
   }
   function endGrab() {
-    if (!grab) return;
-    releaseGrabForce();
+    if (!grab && !cubeDrag) return;
+    if (grab) releaseGrabForce();
+    cubeDrag = null;
     controls.enabled = true;
     renderer.domElement.style.cursor = "";
   }
@@ -1706,8 +1714,24 @@ async function boot({ scene, camera, renderer }) {
   // chase cam exactly like an orbit drag does).
   window.addEventListener("pointerdown", (e) => {
     if (e.target !== renderer.domElement || e.pointerType !== "mouse" || e.button !== 0) return;
-    if (grab || inputLocked) return;
+    if (grab || cubeDrag || inputLocked) return;
     grabRayFrom(e);
+    if (!obstaclePlacement && !nfcPlacement) {
+      const cubeHit = cubePick();
+      if (cubeHit && _grabRaycaster.ray.intersectPlane(_cubeDragPlane, _cubeDragHit)) {
+        const index = obstacleMeshes.indexOf(cubeHit.object);
+        const p = obstaclePositions[index];
+        if (index >= 0 && p) {
+          cubeDrag = { index, offsetX: p.x - _cubeDragHit.x, offsetY: p.y + _cubeDragHit.z };
+          controls.enabled = false;
+          renderer.domElement.style.cursor = "grabbing";
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          try { renderer.domElement.setPointerCapture(e.pointerId); } catch { /* capture unsupported */ }
+          return;
+        }
+      }
+    }
     const pick = grabPick();
     if (!pick) return;
     // Any duck mesh grabs the trunk: the freejoint root carries the whole
@@ -1729,6 +1753,17 @@ async function boot({ scene, camera, renderer }) {
   }, true);
   let grabHoverAt = 0;
   window.addEventListener("pointermove", (e) => {
+    if (cubeDrag) {
+      grabRayFrom(e);
+      if (_grabRaycaster.ray.intersectPlane(_cubeDragPlane, _cubeDragHit)) {
+        const lim = ARENA_HALF - OBSTACLE_SIZE / 2 - 0.04;
+        const p = obstaclePositions[cubeDrag.index];
+        p.x = Math.min(lim, Math.max(-lim, _cubeDragHit.x + cubeDrag.offsetX));
+        p.y = Math.min(lim, Math.max(-lim, -_cubeDragHit.z + cubeDrag.offsetY));
+        syncObstaclesToPhysics();
+      }
+      return;
+    }
     if (grab) {
       grabRayFrom(e);
       updateGrabTarget();
@@ -1743,7 +1778,7 @@ async function boot({ scene, camera, renderer }) {
     grabHoverAt = now;
     grabRayFrom(e);
     const clickable = mode === "walk" && !headMode;
-    renderer.domElement.style.cursor = grabPick() ? "grab" : (clickable ? "crosshair" : "");
+    renderer.domElement.style.cursor = (cubePick() || grabPick()) ? "grab" : (clickable ? "crosshair" : "");
   });
   window.addEventListener("pointerup", endGrab);
   window.addEventListener("pointercancel", endGrab);
