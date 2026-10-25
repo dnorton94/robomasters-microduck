@@ -155,6 +155,10 @@ Use the **Testing Bay / Mission** control to enter Stage One: **The Red Plate**.
 Each stage opens with a short narrative briefing. Mission evaluation, autonomy,
 timers and battery use remain paused until **Enter Stage** is selected; the
 briefing establishes atmosphere without revealing the stage's solution.
+Completing Stage Three ends the mission with a narrative debrief. The objective
+can succeed with different outcomes according to the battery and containment
+state carried through all three stages, so an efficient recovery, a costly
+recovery and a pyrrhic recovery do not receive the same ending.
 Mission intent is inferred from the system the participant builds rather than
 selected in a form. The simulator observes whether MicroDuck actually follows
 a direct, balanced or cautious path: shorter routes conserve energy but expose

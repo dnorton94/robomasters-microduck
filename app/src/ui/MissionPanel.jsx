@@ -5,6 +5,7 @@ import { gameApi, useGame } from "../store.js";
 import { ANTON, COMIC_INK, CREAM } from "./comic.jsx";
 import { MONO, ORANGE } from "../theme.js";
 import { STAGE_THREE_CODE, STAGE_TWO_CODE } from "../game/missions/stage-two.js";
+import { selectMissionEnding } from "../game/missions/mission-ending.js";
 
 const plateFlash = keyframes`
   0%, 100% { opacity: .08; }
@@ -52,6 +53,12 @@ export default function MissionPanel() {
     if (accepted) setCode("");
   };
   const briefing = STAGE_BRIEFINGS[mission.stage] ?? STAGE_BRIEFINGS[1];
+  const ending = selectMissionEnding({ batteryPct: useGame.getState().battery.levelPct,
+    containment: mission.containment });
+  const leaveMission = () => {
+    useGame.setState({ environmentMode: "testing", policiesVisible: false });
+    gameApi.setEnvironmentMode?.("testing");
+  };
   return <>
     {mission.status === "briefing" && <Box role="dialog" aria-modal="true" aria-label={`Stage ${mission.stage} briefing`}
       sx={{ position: "fixed", zIndex: 30, inset: 0, display: "grid", placeItems: "center",
@@ -148,5 +155,36 @@ export default function MissionPanel() {
       transform: "translateX(-50%)", px: 1.4, py: .7, border: `2px solid ${ORANGE}`,
       background: "rgba(7,8,12,.88)", color: CREAM, fontFamily: MONO, fontSize: ".68rem",
       letterSpacing: ".06em" }}>STAGE THREE · THE VOICE OF A.R.I.A.</Box>}
+    {mission.stage === 3 && mission.status === "success" &&
+      <Box role="dialog" aria-modal="true" aria-label="Mission outcome"
+        sx={{ position: "fixed", zIndex: 31, inset: 0, display: "grid", placeItems: "center",
+          p: 2, background: "rgba(3,5,9,.82)", backdropFilter: "blur(5px)" }}>
+        <Box sx={{ width: 500, maxWidth: "calc(100vw - 2rem)", p: 2.5,
+          border: "3px solid #38ef91", background: "rgba(7,8,12,.98)",
+          boxShadow: `9px 9px 0 ${COMIC_INK}` }}>
+          <Box sx={{ color: "#38ef91", fontFamily: MONO, fontSize: ".66rem", letterSpacing: ".16em" }}>
+            MISSION COMPLETE · FINAL OUTCOME
+          </Box>
+          <Box sx={{ mt: .7, color: CREAM, fontFamily: ANTON, fontSize: "1.75rem", letterSpacing: ".055em" }}>
+            {ending.title}
+          </Box>
+          <Box sx={{ mt: 1, color: "rgba(250,248,242,.84)", fontFamily: MONO,
+            fontSize: ".76rem", lineHeight: 1.7 }}>{ending.copy}</Box>
+          <Box sx={{ display: "flex", gap: 1, mt: 1.5, color: ORANGE, fontFamily: MONO,
+            fontSize: ".68rem", letterSpacing: ".06em" }}>
+            <Box sx={{ flex: 1, p: .8, border: `1px solid ${ORANGE}` }}>
+              BATTERY · {Math.round(useGame.getState().battery.levelPct)}%
+            </Box>
+            <Box sx={{ flex: 1, p: .8, border: `1px solid ${ORANGE}` }}>
+              STABILITY · {Math.max(0, 100 - (mission.containment ?? 0))}%
+            </Box>
+          </Box>
+          <Box component="button" type="button" autoFocus onClick={leaveMission}
+            sx={{ mt: 1.5, width: "100%", py: 1, border: 0, background: "#38ef91",
+              color: COMIC_INK, fontFamily: ANTON, fontSize: "1.05rem", letterSpacing: ".08em" }}>
+            RETURN TO TESTING BAY
+          </Box>
+        </Box>
+      </Box>}
   </>;
 }
