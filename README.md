@@ -184,6 +184,10 @@ The simulator deliberately does not show predicted per-behaviour costs:
 participants must use battery telemetry and mission trials to reason about the
 trade-offs in the modules they choose. Coding agents are told about the power
 accounting contract so newly generated behaviours remain part of that mechanic.
+All mechanics remain readable and manually editable in the local source. The
+educational boundary applies to coding agents: they may build participant
+behaviours, but must not reveal or modify protected rules on a learner's behalf.
+Nothing is obfuscated or technically locked against deliberate human study.
 Custom code can inspect the observed route and containment stability through
 `sensors.missionResources`, but not the hidden attempt budget.
 The duck must solve the plate's hidden timing protocol using autonomous control;
