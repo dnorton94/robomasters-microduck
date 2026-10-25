@@ -1504,7 +1504,12 @@ async function boot({ scene, camera, renderer }) {
       autonomousSource.configure({ enabled: true, mode: store().autonomyMode });
       setStore({ autonomyEnabled: true, policiesVisible: false,
         obstaclePlacement: false, ballActive: false });
-      relocateRedPlate({ delay: 0, increment: false });
+      const missionStage = store().mission.stage;
+      if (missionStage === 2) startStageTwoRound();
+      else if (missionStage === 3) {
+        if (stageThreeInstruction) stageThreeWall.visible = true;
+        else showStageThreeWall();
+      } else relocateRedPlate({ delay: 0, increment: false });
     } else {
       // Mission geometry must never leak into the Testing Bay. Stage Three's
       // instruction wall is kept resident for fast stage re-entry, but is a
