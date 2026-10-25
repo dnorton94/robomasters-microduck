@@ -1454,7 +1454,7 @@ async function boot({ scene, camera, renderer }) {
     clearTimeout(redPlateIdleTimer);
     redPlateAvailable = false;
     redPlate.visible = false;
-    stageThreeWall.visible = mission && store().mission.stage === 3;
+    stageThreeWall.visible = store().environmentMode === "mission" && store().mission.stage === 3;
     setStore({ mission: { stage: 1, status: "relocating",
       feedback: "PLATE SIGNAL LOST · SCANNING FLOOR", attempt: store().mission.attempt } });
     redPlateTimer = setTimeout(() => {
