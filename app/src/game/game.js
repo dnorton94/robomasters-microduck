@@ -57,6 +57,7 @@ import { hasAutonomousBehavior } from "./autonomy/behavior-registry.js";
 import { publishTofFrame, tofApi } from "./tof-sensor.js";
 import { publishNfcState, nfcApi } from "./nfc-sensor.js";
 import { publishImuState } from "./imu-sensor.js";
+import { speakerApi } from "./speaker.js";
 import { createRedPlateMission, RED_PLATE_SIZE } from "./missions/red-plate.js";
 import { acceptsStageThreeCode, acceptsStageTwoCode, createStageTwoMission, STAGE_TWO_CUBES } from "./missions/stage-two.js";
 import { setMissionNetworkLock } from "./missions/network-lock.js";
@@ -561,6 +562,7 @@ async function boot({ scene, camera, renderer }) {
       nfc: nfcApi.getState(),
       imu: store().imu,
       microphone: store().microphone,
+      speaker: speakerApi,
     }),
     manualActive,
     onStatus: (autonomyStatus) => setStore({ autonomyStatus }),

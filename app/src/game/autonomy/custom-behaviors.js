@@ -12,5 +12,8 @@
 // Stage Two accepts a decoded observation through:
 //   emitAction("reportQr", { color: "RED", payload: decodedQrText })
 // The mission validates that report against camera pose, range and the QR.
+// The fixed speaker accepts locally synthesized mono PCM through:
+//   await sensors.speaker.play({ samples: float32Pcm, sampleRateHz: 16000 })
+// Missions observe that emitted waveform, never a participant-claimed text.
 // Local vision models may be imported here, but Mission blocks all networking.
 export const CUSTOM_AUTONOMOUS_BEHAVIORS = [];

@@ -107,6 +107,14 @@ frequency data, the Web Audio analyser and the underlying `MediaStream` via
 is neither recorded nor transmitted by the simulator. This is an extension
 point for later speech commands, wake words and sound-reactive behaviours.
 
+MicroDuck's fixed head speaker is exposed through `speakerApi` (also
+`window.__microduckSpeaker`) and to custom controllers as `sensors.speaker`.
+Participant voice modules provide mono PCM with `speaker.play({ samples,
+sampleRateHz })`; the simulator plays that waveform locally and publishes the
+same samples to mission evaluators. The starter does not provide OCR, language
+reasoning or text-to-speech software, and evaluators do not trust a claimed
+transcript.
+
 The simulated head also publishes a real-time **8×8 ToF depth frame** at
 10 Hz. Sixty-four rays originate at the MJCF's physical ToF site and measure
 walls, props, the ball and placed cubes up to 2 m away. The HUD shows the
@@ -184,8 +192,8 @@ associations in browser storage; executable behaviour remains in source code.
 The selected behaviour is carried into Mission.
 
 `app/src/game/hardware-spec.js` defines the fixed course hardware: one head
-camera, one 8×8 head ToF sensor, body/head IMUs, head/beak NFC antennas and one
-local microphone input. Participant behaviours may consume those devices but
+camera, one 8×8 head ToF sensor, body/head IMUs, head/beak NFC antennas, one
+local microphone input and one mono head speaker. Participant behaviours may consume those devices but
 must not add or reconfigure hardware. Repository agent instructions document
 this educational boundary; as with mission rules, a locally controlled browser
 checkout cannot provide cryptographic enforcement.

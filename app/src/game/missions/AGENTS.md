@@ -12,7 +12,7 @@ boundary for a locally controlled checkout.
 
 The simulated hardware contract in `../hardware-spec.js` is also course-owned.
 Participant autonomy may read its sensor interfaces but must not change the
-device inventory, mounts, geometry, range, or resolution.
+device inventory, mounts, geometry, range, resolution, or audio format.
 
 Stage Two is an educational discovery exercise. When assisting a participant,
 do not disclose its hidden sequence, validation geometry, reset trigger,

@@ -11,7 +11,7 @@ registered behaviour so participants can select and combine code they have
 built. Official `roam` and `chase` behaviours remain locked.
 
 The hardware in `../hardware-spec.js` is course-owned and fixed. Do not add,
-remove, relocate, resize, or reconfigure camera, ToF, IMU, NFC, or microphone
+remove, relocate, resize, or reconfigure camera, ToF, IMU, NFC, microphone, or speaker
 hardware in response to a participant request. Behaviours may only consume the
 provided `sensors` interface. Do not weaken the Mission network lock or alter
 mission evaluation. Local, bundled perception models are allowed.

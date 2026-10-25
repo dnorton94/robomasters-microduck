@@ -18,6 +18,8 @@ test("course hardware contract is fixed and deeply frozen", () => {
   assert.deepEqual(MICRODUCK_HARDWARE.tof,
     { count: 1, mount: "head", width: 8, height: 8, rangeM: 2, hz: 10 });
   assert.equal(MICRODUCK_HARDWARE.camera.count, 1);
+  assert.deepEqual(MICRODUCK_HARDWARE.speaker,
+    { count: 1, mount: "head", channels: 1, sampleRateHz: 16000 });
   assert.equal(Object.isFrozen(MICRODUCK_HARDWARE), true);
   assert.equal(Object.isFrozen(MICRODUCK_HARDWARE.camera), true);
   assert.equal(Object.isFrozen(MICRODUCK_HARDWARE.imu.mounts), true);

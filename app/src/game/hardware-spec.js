@@ -6,4 +6,5 @@ export const MICRODUCK_HARDWARE = Object.freeze({
   imu: Object.freeze({ count: 2, mounts: Object.freeze(["body", "head"]), axes: 6 }),
   nfc: Object.freeze({ count: 2, mounts: Object.freeze(["head", "beak"]) }),
   microphone: Object.freeze({ count: 1, source: "local-browser-input" }),
+  speaker: Object.freeze({ count: 1, mount: "head", channels: 1, sampleRateHz: 16000 }),
 });
