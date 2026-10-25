@@ -277,8 +277,7 @@ function PoliciesButton() {
 }
 
 const OFFICIAL_DUCK_SOUNDS = [
-  ["chirp", "Chirp"], ["greet", "Greet"], ["inquire", "Inquire"],
-  ["peck", "Peck"], ["coo", "Coo"], ["alarm", "Alarm"], ["wheee", "Wheee"],
+  ["chirp", "Chirp"], ["wheee", "Wheee"],
 ];
 
 function SpeakButton() {
@@ -286,7 +285,7 @@ function SpeakButton() {
   const [open, setOpen] = useState(false);
   if (mission) return null;
   return <HudPlate caption="Voice" captionSide="right"
-    sx={{ position: "fixed", top: "1.25rem", right: "30rem", zIndex: 10 }}>
+    sx={{ position: "fixed", top: "1.25rem", right: "26.5rem", zIndex: 10 }}>
     <Box component="button" type="button" aria-expanded={open} aria-label="Speak with official MicroDuck sounds"
       onClick={() => { uiClick(); setOpen(!open); }} sx={{ ...hudHitSx, color: open ? COMIC_INK : CREAM,
         background: open ? ORANGE : "transparent" }}>Speak</Box>

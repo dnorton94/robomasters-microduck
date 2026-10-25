@@ -2310,9 +2310,7 @@ async function boot({ scene, camera, renderer }) {
     stickers?.pop("quack");
   };
   const OFFICIAL_SOUND_STYLE = {
-    chirp: ["chirp_a.wav", 1], greet: ["chirp_c.wav", .9], inquire: ["chirp_e.wav", 1.12],
-    peck: ["chirp_g.wav", 1.3], coo: ["chirp_i.wav", .72], alarm: ["chirp_l.wav", 1.45],
-    wheee: ["wheee_start_a.wav", 1],
+    chirp: ["chirp_a.wav", 1], wheee: ["wheee_start_a.wav", 1],
   };
   function playOfficialSound(name) {
     if (store().environmentMode === "mission") return false;

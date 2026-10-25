@@ -93,10 +93,9 @@ Every sensor card can also be hidden and restored independently.
 The button is available inside the simulator but is omitted from the home and
 pause screen.
 
-Testing Bay includes a **Speak** soundboard for the existing MicroDuck voice
-categories: Chirp, Greet, Inquire, Peck, Coo, Alarm and Wheee. Playback follows
-the selected colourway's voice bank and the soundboard is unavailable in
-Mission.
+Testing Bay includes a **Speak** soundboard for the two MicroDuck voice assets
+present in this simulator: Chirp and Wheee. Playback follows the selected
+colourway's voice bank and the soundboard is unavailable in Mission.
 
 The **First person / Third person** control switches the whole arena view to
 the existing MicroDuck head camera and back. It remains available in both the
