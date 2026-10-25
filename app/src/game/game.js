@@ -61,6 +61,7 @@ import { speakerApi } from "./speaker.js";
 import { createRedPlateMission, RED_PLATE_SIZE } from "./missions/red-plate.js";
 import { acceptsStageThreeCode, acceptsStageTwoCode, createStageTwoMission, STAGE_TWO_CUBES } from "./missions/stage-two.js";
 import { setMissionNetworkLock } from "./missions/network-lock.js";
+import { createStageThreeSpeechEvaluator, matchesStageThreePhrase } from "./missions/stage-three-asr.js";
 import { MICRODUCK_HARDWARE } from "./hardware-spec.js";
 import { STAGE_ONE_MAX_ATTEMPTS, inferRoute, routeRisk } from "./missions/mission-resources.js";
 import { batteryDrainPerSecond } from "./power-model.js";
@@ -1687,6 +1688,7 @@ async function boot({ scene, camera, renderer }) {
     return true;
   }
   let lastStageThreeSpeakerSequence = 0;
+  const stageThreeSpeechEvaluator = createStageThreeSpeechEvaluator();
   function startStageThree({ resetBudget = false, newInstruction = true } = {}) {
     clearObstacles();
     ball?.hideImmediately({ parkPhysics: parkBallPhysics });
@@ -1698,14 +1700,34 @@ async function boot({ scene, camera, renderer }) {
       attemptsRemaining: resetBudget ? STAGE_ONE_MAX_ATTEMPTS : store().mission.attemptsRemaining },
       autonomyEnabled: true, policiesVisible: false, obstaclePlacement: false, ballActive: false });
   }
-  speakerApi.subscribe((speaker) => {
+  speakerApi.subscribe(async (speaker) => {
     if (speaker.status !== "playing" || speaker.sequence === lastStageThreeSpeakerSequence) return;
     lastStageThreeSpeakerSequence = speaker.sequence;
     if (store().environmentMode !== "mission" || store().mission.stage !== 3 ||
       store().mission.status !== "active") return;
-    // Audio is a submission. Until a local speech evaluator confirms the
-    // phrase, the mission treats it as rejected and rotates the challenge.
-    consumeStageAttempt(3, "TRANSMISSION REJECTED", () => startStageThree({ newInstruction: true }));
+    const expected = stageThreeInstruction?.expected;
+    const sequence = speaker.sequence;
+    setStore({ mission: { ...store().mission, status: "evaluating", feedback: "ANALYSING TRANSMISSION LOCALLY" } });
+    try {
+      const transcript = await stageThreeSpeechEvaluator.transcribe({
+        samples: speaker.samples,
+        sampleRateHz: speaker.sampleRateHz,
+      });
+      if (store().environmentMode !== "mission" || store().mission.stage !== 3 ||
+        lastStageThreeSpeakerSequence !== sequence || stageThreeInstruction?.expected !== expected) return;
+      if (matchesStageThreePhrase(transcript, expected)) {
+        autonomousSource.stop();
+        setStore({ mission: { ...store().mission, status: "success", feedback: "A.R.I.A. ONLINE" } });
+      } else {
+        consumeStageAttempt(3, "TRANSMISSION REJECTED", () => startStageThree({ newInstruction: true }));
+      }
+    } catch (error) {
+      console.error("Local Stage Three speech recognition failed", error);
+      if (store().environmentMode === "mission" && store().mission.stage === 3 &&
+        lastStageThreeSpeakerSequence === sequence)
+        setStore({ mission: { ...store().mission, status: "active",
+          feedback: "LOCAL SPEECH SYSTEM UNAVAILABLE · TRY AGAIN" } });
+    }
   });
   function activateMissionStage(code) {
     if (store().environmentMode !== "mission") return false;

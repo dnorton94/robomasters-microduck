@@ -159,6 +159,10 @@ Completing Stage Three ends the mission with a narrative debrief. The objective
 can succeed with different outcomes according to the battery and containment
 state carried through all three stages, so an efficient recovery, a costly
 recovery and a pyrrhic recovery do not receive the same ending.
+Stage Three transcribes the exact PCM emitted by MicroDuck's simulated speaker
+with a locally bundled Transformers.js Whisper model. The model and WebAssembly
+runtime are served from the project itself, remote model access is disabled,
+and the transcript is checked only inside the mission evaluator.
 Mission intent is inferred from the system the participant builds rather than
 selected in a form. The simulator observes whether MicroDuck actually follows
 a direct, balanced or cautious path: shorter routes conserve energy but expose

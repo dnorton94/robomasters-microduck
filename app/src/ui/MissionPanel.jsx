@@ -154,7 +154,9 @@ export default function MissionPanel() {
     {mission.stage === 3 && <Box role="status" sx={{ position: "fixed", zIndex: 9, top: 82, left: "50%",
       transform: "translateX(-50%)", px: 1.4, py: .7, border: `2px solid ${ORANGE}`,
       background: "rgba(7,8,12,.88)", color: CREAM, fontFamily: MONO, fontSize: ".68rem",
-      letterSpacing: ".06em" }}>STAGE THREE · THE VOICE OF A.R.I.A.</Box>}
+      letterSpacing: ".06em" }}>{mission.status === "evaluating"
+        ? "A.R.I.A. IS LISTENING · LOCAL ANALYSIS"
+        : "STAGE THREE · THE VOICE OF A.R.I.A."}</Box>}
     {mission.stage === 3 && mission.status === "success" &&
       <Box role="dialog" aria-modal="true" aria-label="Mission outcome"
         sx={{ position: "fixed", zIndex: 31, inset: 0, display: "grid", placeItems: "center",
