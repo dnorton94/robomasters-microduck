@@ -63,9 +63,8 @@ export const useGame = create(
     sensorsVisible: true,
     policiesVisible: false,
     environmentMode: "testing", // "testing" | "mission"
-    mission: { stage: 1, status: "intent", feedback: "DEFINE MISSION INTENT", attempt: 1,
-      attemptsRemaining: 4, containment: 0,
-      intent: { configured: false, priority: "safety", route: "balanced" } },
+    mission: { stage: 1, status: "ready", feedback: "LOCATE THE RED PLATE", attempt: 1,
+      attemptsRemaining: 4, containment: 0, observedRoute: "direct" },
     povEnabled: true,
     povFirstPerson: false,
     microphone: { status: "off", level: 0, error: null },

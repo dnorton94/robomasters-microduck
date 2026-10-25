@@ -62,7 +62,7 @@ import { createRedPlateMission, RED_PLATE_SIZE } from "./missions/red-plate.js";
 import { acceptsStageThreeCode, acceptsStageTwoCode, createStageTwoMission, STAGE_TWO_CUBES } from "./missions/stage-two.js";
 import { setMissionNetworkLock } from "./missions/network-lock.js";
 import { MICRODUCK_HARDWARE } from "./hardware-spec.js";
-import { STAGE_ONE_MAX_ATTEMPTS, moduleEnergyMultiplier, routeEnergyMultiplier, routeRisk } from "./missions/mission-resources.js";
+import { STAGE_ONE_MAX_ATTEMPTS, inferRoute, moduleEnergyMultiplier, routeRisk } from "./missions/mission-resources.js";
 import * as fx from "./fx/fx-wireframe.js";
 import { createWaypointMarker } from "./fx/waypoint-marker.js";
 import { createCeremony, CAM_RESET_S } from "./ceremony.js";
@@ -565,7 +565,8 @@ async function boot({ scene, camera, renderer }) {
       microphone: store().microphone,
       speaker: speakerApi,
       battery: store().battery,
-      missionIntent: store().mission.intent,
+      missionResources: { observedRoute: store().mission.observedRoute,
+        attemptsRemaining: store().mission.attemptsRemaining, containment: store().mission.containment },
     }),
     manualActive,
     onStatus: (autonomyStatus) => setStore({ autonomyStatus }),
@@ -1410,6 +1411,10 @@ async function boot({ scene, camera, renderer }) {
   let redPlateAvailable = false;
   let redPlateTimer = null;
   let redPlateIdleTimer = null;
+  let attemptDistance = 0;
+  let attemptDirectDistance = 1;
+  let attemptLastX = 0;
+  let attemptLastY = 0;
   redPlate.position.y = 0.003;
   redPlate.visible = false;
   scene.add(redPlate);
@@ -1461,7 +1466,7 @@ async function boot({ scene, camera, renderer }) {
     if (increment) {
       const current = store().mission;
       const nextAttempt = current.attempt + 1;
-      const risk = routeRisk(current.intent?.route);
+      const risk = routeRisk(current.observedRoute);
       const containment = Math.min(100, (current.containment ?? 0) + risk);
       if (nextAttempt > STAGE_ONE_MAX_ATTEMPTS || containment >= 100) {
         setStore({ mission: { ...current, stage: 1, status: "failed", attemptsRemaining: 0,
@@ -1477,6 +1482,10 @@ async function boot({ scene, camera, renderer }) {
       redPlateLocationIndex = (redPlateLocationIndex + 1) % redPlateLocations.length;
       redPlatePosition = redPlateLocations[redPlateLocationIndex];
       redPlate.position.set(redPlatePosition.x, 0.003, -redPlatePosition.y);
+      attemptDistance = 0;
+      attemptLastX = data.qpos[0];
+      attemptLastY = data.qpos[1];
+      attemptDirectDistance = Math.hypot(redPlatePosition.x - attemptLastX, redPlatePosition.y - attemptLastY);
       redPlateAvailable = true;
       redPlate.visible = store().environmentMode === "mission";
       publishMission(redPlateMission.reset({ increment }));
@@ -1525,9 +1534,7 @@ async function boot({ scene, camera, renderer }) {
       else if (missionStage === 3) {
         if (stageThreeInstruction) stageThreeWall.visible = true;
         else showStageThreeWall();
-      } else if (store().mission.intent?.configured) relocateRedPlate({ delay: 0, increment: false });
-      else setStore({ mission: { ...store().mission, stage: 1, status: "intent",
-        feedback: "DEFINE MISSION INTENT" } });
+      } else relocateRedPlate({ delay: 0, increment: false });
     } else {
       // Mission geometry must never leak into the Testing Bay. Stage Three's
       // instruction wall is kept resident for fast stage re-entry, but is a
@@ -2271,6 +2278,13 @@ async function boot({ scene, camera, renderer }) {
       return;
     }
     if (!redPlateAvailable) return;
+    const stepDistance = Math.hypot(data.qpos[0] - attemptLastX, data.qpos[1] - attemptLastY);
+    if (stepDistance < 0.1) attemptDistance += stepDistance;
+    attemptLastX = data.qpos[0];
+    attemptLastY = data.qpos[1];
+    const observedRoute = inferRoute(attemptDistance, attemptDirectDistance);
+    if (store().mission.observedRoute !== observedRoute)
+      setStore({ mission: { ...store().mission, observedRoute } });
     const half = RED_PLATE_SIZE / 2;
     const onPlate = Math.abs(data.qpos[0] - redPlatePosition.x) <= half &&
       Math.abs(data.qpos[1] - redPlatePosition.y) <= half && data.qpos[2] > 0.11;
@@ -2592,10 +2606,8 @@ async function boot({ scene, camera, renderer }) {
       Math.abs(batteryCommand[2]) * .5);
     const activeProfile = store().autonomyProfiles.find((profile) => profile.id === store().autonomyProfileId);
     const moduleCount = Math.max(1, activeProfile?.behaviors?.length ?? 1);
-    const routeEnergy = store().environmentMode === "mission"
-      ? routeEnergyMultiplier(store().mission.intent?.route) : 1;
     const moduleLoad = store().environmentMode === "mission" ? moduleEnergyMultiplier(moduleCount) : 1;
-    batteryLevel = Math.max(0, batteryLevel - dt * (0.0025 + movementLoad * 0.012) * routeEnergy * moduleLoad);
+    batteryLevel = Math.max(0, batteryLevel - dt * (0.0025 + movementLoad * 0.012) * moduleLoad);
     if (sensorNow - batteryPublishedAt >= 250) {
       batteryPublishedAt = sensorNow;
       const levelPct = Math.round(batteryLevel * 10) / 10;
@@ -2918,16 +2930,6 @@ async function boot({ scene, camera, renderer }) {
     setEnvironmentMode,
     resetMission: () => store().mission.stage === 1 && relocateRedPlate(),
     activateMissionStage,
-    configureMissionIntent: (intent) => {
-      if (store().environmentMode !== "mission" || store().mission.stage !== 1) return false;
-      const priority = ["safety", "speed", "learning"].includes(intent?.priority) ? intent.priority : "safety";
-      const route = ["direct", "balanced", "cautious"].includes(intent?.route) ? intent.route : "balanced";
-      setStore({ mission: { ...store().mission, stage: 1, status: "ready", attempt: 1,
-        attemptsRemaining: STAGE_ONE_MAX_ATTEMPTS, containment: 0,
-        intent: { configured: true, priority, route } } });
-      relocateRedPlate({ delay: 0, increment: false });
-      return true;
-    },
     renderPov: (viewRenderer, viewCamera) => {
       // In kinematics.json, body `jaw_soft` carries joint `head_roll` and
       // therefore owns the MJCF head_camera frame.

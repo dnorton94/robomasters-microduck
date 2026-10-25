@@ -4,8 +4,9 @@ export function routeRisk(route) {
   return route === "direct" ? 30 : route === "cautious" ? 15 : 22;
 }
 
-export function routeEnergyMultiplier(route) {
-  return route === "direct" ? 0.85 : route === "cautious" ? 1.3 : 1;
+export function inferRoute(traveledM, directDistanceM) {
+  const ratio = traveledM / Math.max(0.1, directDistanceM);
+  return ratio <= 1.25 ? "direct" : ratio <= 1.75 ? "balanced" : "cautious";
 }
 
 export function moduleEnergyMultiplier(moduleCount) {

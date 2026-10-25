@@ -14,7 +14,6 @@ const plateFlash = keyframes`
 export default function MissionPanel() {
   const [code, setCode] = useState("");
   const [codeError, setCodeError] = useState(false);
-  const [intent, setIntent] = useState({ priority: "safety", route: "balanced" });
   const entered = useGame((state) => state.entered);
   const menuOpen = useGame((state) => state.menuOpen);
   const mode = useGame((state) => state.environmentMode);
@@ -25,66 +24,20 @@ export default function MissionPanel() {
   const standing = mission.status === "timing" || mission.status === "armed";
   const activeProfile = profiles.find((profile) => profile.id === profileId);
   const moduleCount = Math.max(1, activeProfile?.behaviors?.length ?? 1);
-  const deploy = () => gameApi.configureMissionIntent?.(intent);
+  const observedRoute = mission.observedRoute ?? "direct";
+  const effectivePriority = observedRoute === "direct" ? "speed" : observedRoute === "cautious" ? "safety" : "learning";
   const activate = () => {
     const accepted = gameApi.activateMissionStage?.(code);
     setCodeError(!accepted);
     if (accepted) setCode("");
   };
   return <>
-    {mission.stage === 1 && !mission.intent?.configured && <Box role="dialog" aria-label="Mission Intent"
-      sx={{ position: "fixed", inset: 0, zIndex: 25, display: "grid", placeItems: "center",
-        background: "rgba(2,5,9,.78)" }}>
-      <Box sx={{ width: 560, maxWidth: "calc(100vw - 2rem)", border: `3px solid ${CREAM}`,
-        background: "rgba(7,8,12,.98)", boxShadow: `8px 8px 0 ${COMIC_INK}`, p: 2 }}>
-        <Box sx={{ fontFamily: ANTON, color: ORANGE, fontSize: "1.45rem", letterSpacing: ".08em" }}>
-          MISSION INTENT
-        </Box>
-        <Box sx={{ mt: .4, color: CREAM, fontFamily: MONO, fontSize: ".68rem", lineHeight: 1.55 }}>
-          You set the priorities and acceptable trade-offs. MicroDuck controls its actions within those boundaries.
-        </Box>
-        <Box sx={{ mt: 1.3, color: "rgba(250,248,242,.55)", fontFamily: MONO, fontSize: ".57rem" }}>
-          PRIMARY PRIORITY
-        </Box>
-        <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: .6, mt: .5 }}>
-          {[['safety','Safety first'],['speed','Speed first'],['learning','Learning first']].map(([value,label]) =>
-            <Box key={value} component="button" type="button" aria-pressed={intent.priority === value}
-              onClick={() => setIntent({ ...intent, priority: value })}
-              sx={{ p: .8, border: `1px solid ${intent.priority === value ? ORANGE : CREAM}`,
-                background: intent.priority === value ? ORANGE : "transparent",
-                color: intent.priority === value ? COMIC_INK : CREAM, fontFamily: ANTON }}>{label}</Box>)}
-        </Box>
-        <Box sx={{ mt: 1.3, color: "rgba(250,248,242,.55)", fontFamily: MONO, fontSize: ".57rem" }}>
-          NAVIGATION COMMITMENT
-        </Box>
-        <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: .6, mt: .5 }}>
-          {[['direct','Direct','Low energy · high risk'],['balanced','Balanced','Moderate energy · risk'],
-            ['cautious','Cautious','High energy · low risk']].map(([value,label,detail]) =>
-            <Box key={value} component="button" type="button" aria-pressed={intent.route === value}
-              onClick={() => setIntent({ ...intent, route: value })}
-              sx={{ p: .75, border: `1px solid ${intent.route === value ? ORANGE : CREAM}`,
-                background: intent.route === value ? "rgba(255,122,47,.18)" : "transparent", color: CREAM }}>
-              <Box sx={{ fontFamily: ANTON, color: intent.route === value ? ORANGE : CREAM }}>{label}</Box>
-              <Box sx={{ mt: .25, fontFamily: MONO, fontSize: ".5rem", color: "rgba(250,248,242,.58)" }}>{detail}</Box>
-            </Box>)}
-        </Box>
-        <Box sx={{ mt: 1.2, p: 1, border: "1px solid rgba(250,248,242,.2)", color: CREAM,
-          fontFamily: MONO, fontSize: ".62rem", display: "flex", justifyContent: "space-between" }}>
-          <span>{moduleCount} ACTIVE MODULE{moduleCount === 1 ? "" : "S"}</span>
-          <span>MORE MODULES INCREASE POWER DRAW</span>
-          <span>4 ATTEMPTS</span>
-        </Box>
-        <Box component="button" type="button" onClick={deploy}
-          sx={{ width: "100%", mt: 1.2, py: .8, border: 0, background: ORANGE,
-            color: COMIC_INK, fontFamily: ANTON, fontSize: "1rem" }}>APPROVE INTENT & DEPLOY</Box>
-      </Box>
-    </Box>}
-    {mission.stage === 1 && mission.intent?.configured && mission.status !== "success" &&
+    {mission.stage === 1 && mission.status !== "success" &&
       <Box role="status" sx={{ position: "fixed", zIndex: 9, top: 82, left: "50%", transform: "translateX(-50%)",
         width: 430, maxWidth: "calc(100vw - 2rem)", px: 1.2, py: .75, border: `2px solid ${ORANGE}`,
         background: "rgba(7,8,12,.9)", color: CREAM, fontFamily: MONO, fontSize: ".6rem" }}>
         <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-          <span>{mission.intent.priority.toUpperCase()} · {mission.intent.route.toUpperCase()} ROUTE</span>
+          <span>OBSERVED {observedRoute.toUpperCase()} ROUTE · {effectivePriority.toUpperCase()} PRIORITY · {moduleCount} MODULE{moduleCount === 1 ? "" : "S"}</span>
           <span>{mission.attemptsRemaining} ATTEMPTS LEFT</span>
         </Box>
         <Box sx={{ mt: .5, height: 6, background: "rgba(250,248,242,.14)" }}>
