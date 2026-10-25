@@ -1410,6 +1410,35 @@ async function boot({ scene, camera, renderer }) {
   redPlate.position.y = 0.003;
   redPlate.visible = false;
   scene.add(redPlate);
+  const stageThreeWall = new THREE.Group();
+  stageThreeWall.visible = false;
+  stageThreeWall.position.set(0, .72, -ARENA_HALF + .035);
+  scene.add(stageThreeWall);
+  let stageThreeInstruction = null;
+  function showStageThreeWall() {
+    stageThreeWall.clear();
+    const words = ["STARLIGHT", "NIGHTFALL", "MOONBEAM", "FIREFLY", "SKYLARK"];
+    const verificationWord = words[(Math.random() * words.length) | 0];
+    stageThreeInstruction = {
+      verificationWord,
+      expected: `ARIA WAKE AND LEAD US HOME ${verificationWord}`,
+    };
+    const canvas = document.createElement("canvas");
+    canvas.width = 1024; canvas.height = 512;
+    const context = canvas.getContext("2d");
+    context.fillStyle = "#e8dfc8"; context.fillRect(0, 0, canvas.width, canvas.height);
+    context.strokeStyle = "#11131a"; context.lineWidth = 22; context.strokeRect(12, 12, 1000, 488);
+    context.fillStyle = "#11131a"; context.textAlign = "center";
+    context.font = "700 54px sans-serif";
+    ["TO WAKE THE SILENT GUARDIAN,", "ADDRESS A.R.I.A. BY NAME.", "ASK HER TO WAKE AND LEAD US HOME.",
+      `END WITH: ${verificationWord}`].forEach((line, index) => context.fillText(line, 512, 130 + index * 86));
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.5, .75),
+      new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide }));
+    stageThreeWall.add(sign);
+    stageThreeWall.visible = true;
+  }
   const publishMission = (result) => {
     if (!result.changed) return;
     setStore({ mission: { stage: 1, ...result.state } });
@@ -1425,6 +1454,7 @@ async function boot({ scene, camera, renderer }) {
     clearTimeout(redPlateIdleTimer);
     redPlateAvailable = false;
     redPlate.visible = false;
+    stageThreeWall.visible = mission && store().mission.stage === 3;
     setStore({ mission: { stage: 1, status: "relocating",
       feedback: "PLATE SIGNAL LOST · SCANNING FLOOR", attempt: store().mission.attempt } });
     redPlateTimer = setTimeout(() => {
@@ -1568,7 +1598,8 @@ async function boot({ scene, camera, renderer }) {
       redPlateAvailable = false;
       redPlate.visible = false;
       clearObstacles();
-      setStore({ mission: { stage: 3, status: "ready", attempt: 1 } });
+      showStageThreeWall();
+      setStore({ mission: { stage: 3, status: "active", attempt: 1 } });
       return true;
     }
     if (!acceptsStageTwoCode(code)) return false;
@@ -2269,6 +2300,20 @@ async function boot({ scene, camera, renderer }) {
     playChirp();
     stickers?.pop("quack");
   };
+  const OFFICIAL_SOUND_STYLE = {
+    chirp: ["chirp_a.wav", 1], greet: ["chirp_c.wav", .9], inquire: ["chirp_e.wav", 1.12],
+    peck: ["chirp_g.wav", 1.3], coo: ["chirp_i.wav", .72], alarm: ["chirp_l.wav", 1.45],
+    wheee: ["wheee_start_a.wav", 1],
+  };
+  function playOfficialSound(name) {
+    if (store().environmentMode === "mission") return false;
+    const style = OFFICIAL_SOUND_STYLE[name];
+    if (!style) return false;
+    const bank = VOICE_BANK[currentVariant] ?? "duck1";
+    quackAt = performance.now();
+    playUrl(signed(`./assets/voices/${bank}/${style[0]}`), { gain: .78, rate: style[1] });
+    return true;
+  }
   // Ground-pick jaw: on the robot the pick policy drives the mouth itself
   // (mouth is part of its action space); the sim's ONNX exports have no
   // mouth channel (all heads are 14 actions), so the peck is re-created
@@ -2756,6 +2801,7 @@ async function boot({ scene, camera, renderer }) {
       reconcileLoco();
     },
     resetSim,
+    playOfficialSound,
     setAutonomy: ({ enabled, mode, profileId = null, behaviorId = null } = {}) => {
       const nextMode = hasAutonomousBehavior(mode) ? mode : "roam";
       const nextEnabled = store().environmentMode === "mission" ? true : !!enabled;

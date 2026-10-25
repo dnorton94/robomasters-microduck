@@ -17,7 +17,6 @@ import { playConfirmBloop } from "../game/audio.js";
 import { INK, ORANGE, MONO } from "../theme.js";
 import { ComicButton, ComicTitle, HalftoneRamp, ANTON, CREAM } from "./comic.jsx";
 import MenuDuck, { preloadMenuDuck, isMenuDuckReady } from "./MenuDuck.jsx";
-import { SensorsButton } from "./Hud.jsx";
 import { readLayoutMap, resolveKeycaps } from "./keyboard-layout.js";
 
 const rowIn = keyframes`
@@ -453,10 +452,6 @@ export default function TitleMenu() {
         </Box>
       </Box>
       )}
-
-      {/* The in-game HUD's shop plate, verbatim: same component, same
-          fixed spot, so pausing never swaps it for a lookalike. */}
-      {ready && <SensorsButton sx={{ ...row(0.1) }} />}
 
       {/* Loading gate: one centered spinner on bare ink until logo,
           fonts, the duck stage's assets and the game boot are all in -

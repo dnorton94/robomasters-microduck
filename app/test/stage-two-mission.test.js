@@ -11,6 +11,7 @@ test("stage two accepts its earned code without case or whitespace sensitivity",
 test("stage three accepts the access phrase", () => {
   assert.equal(STAGE_THREE_CODE, "LEAD DUCK PLEASE");
   assert.equal(acceptsStageThreeCode(" lead   duck please "), true);
+  assert.equal(acceptsStageThreeCode("leap duck please"), true);
 });
 
 const obs = (overrides = {}) => STAGE_TWO_CUBES.map((cube) => ({

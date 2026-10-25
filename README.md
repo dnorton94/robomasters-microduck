@@ -90,6 +90,13 @@ The top-right **Sensors** button toggles the complete sensor dashboard. Hiding
 the dashboard does not reset sensor readings, microphone permission or the
 individual visibility choices; showing it restores the previous state.
 Every sensor card can also be hidden and restored independently.
+The button is available inside the simulator but is omitted from the home and
+pause screen.
+
+Testing Bay includes a **Speak** soundboard for the existing MicroDuck voice
+categories: Chirp, Greet, Inquire, Peck, Coo, Alarm and Wheee. Playback follows
+the selected colourway's voice bank and the soundboard is unavailable in
+Mission.
 
 The **First person / Third person** control switches the whole arena view to
 the existing MicroDuck head camera and back. It remains available in both the
@@ -175,6 +182,11 @@ exact payload and physical observation conditions. The HUD deliberately
 provides no scan, range, decoded-message or puzzle-solution feedback. Detailed
 assessment rules remain in the educator-owned mission source for learners who
 choose to study the implementation directly.
+
+The following earned phrase opens Stage Three without leaving Mission mode.
+The arena becomes **The Voice of A.R.I.A.** chamber and presents a randomized
+wall instruction intended for camera OCR, local interpretation and participant
+TTS through MicroDuck's built-in speaker.
 
 Mission locks autonomous control on but does not replace its configuration. It
 runs the registered code-backed behaviour selected in the Testing Bay. An agent

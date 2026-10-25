@@ -276,6 +276,31 @@ function PoliciesButton() {
   );
 }
 
+const OFFICIAL_DUCK_SOUNDS = [
+  ["chirp", "Chirp"], ["greet", "Greet"], ["inquire", "Inquire"],
+  ["peck", "Peck"], ["coo", "Coo"], ["alarm", "Alarm"], ["wheee", "Wheee"],
+];
+
+function SpeakButton() {
+  const mission = useGame((s) => s.environmentMode === "mission");
+  const [open, setOpen] = useState(false);
+  if (mission) return null;
+  return <HudPlate caption="Voice" captionSide="right"
+    sx={{ position: "fixed", top: "1.25rem", right: "25.1rem", zIndex: 10 }}>
+    <Box component="button" type="button" aria-expanded={open} aria-label="Speak with official MicroDuck sounds"
+      onClick={() => { uiClick(); setOpen(!open); }} sx={{ ...hudHitSx, color: open ? COMIC_INK : CREAM,
+        background: open ? ORANGE : "transparent" }}>Speak</Box>
+    {open && <Box role="menu" aria-label="Official MicroDuck sounds"
+      sx={{ position: "absolute", top: "calc(100% + 7px)", right: 0, width: 138,
+        border: `2px solid ${CREAM}`, background: "rgba(8,8,12,.96)", boxShadow: `4px 4px 0 ${COMIC_INK}` }}>
+      {OFFICIAL_DUCK_SOUNDS.map(([id, label]) => <Box key={id} component="button" type="button" role="menuitem"
+        onClick={() => gameApi.playOfficialSound?.(id)} sx={{ ...hudHitSx, width: "100%", textAlign: "left",
+          px: .8, color: CREAM, borderBottom: "1px solid rgba(250,248,242,.16)",
+          "&:hover": { color: ORANGE, background: "rgba(255,122,47,.1)" } }}>{label}</Box>)}
+    </Box>}
+  </HudPlate>;
+}
+
 function EnvironmentButton() {
   const mode = useGame((s) => s.environmentMode);
   const mission = mode === "mission";
@@ -908,6 +933,7 @@ export default function Hud() {
     <>
       <BackButton />
       <SensorsButton />
+      <SpeakButton />
       <PoliciesButton />
       <EnvironmentButton />
       <PoliciesPanel />

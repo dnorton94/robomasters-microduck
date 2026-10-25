@@ -70,6 +70,6 @@ export default function MissionPanel() {
     {mission.stage === 3 && <Box role="status" sx={{ position: "fixed", zIndex: 9, top: 82, left: "50%",
       transform: "translateX(-50%)", px: 1.4, py: .7, border: `2px solid ${ORANGE}`,
       background: "rgba(7,8,12,.88)", color: CREAM, fontFamily: MONO, fontSize: ".68rem",
-      letterSpacing: ".06em" }}>STAGE THREE · AWAITING MISSION BRIEF</Box>}
+      letterSpacing: ".06em" }}>STAGE THREE · THE VOICE OF A.R.I.A.</Box>}
   </>;
 }

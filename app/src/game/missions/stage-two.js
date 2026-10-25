@@ -10,7 +10,8 @@ export const STAGE_TWO_CUBES = Object.freeze([
 export const acceptsStageTwoCode = (value) =>
   String(value ?? "").trim().toUpperCase() === STAGE_TWO_CODE;
 export const acceptsStageThreeCode = (value) =>
-  String(value ?? "").trim().replace(/\s+/g, " ").toUpperCase() === STAGE_THREE_CODE;
+  [STAGE_THREE_CODE, "LEAP DUCK PLEASE"].includes(
+    String(value ?? "").trim().replace(/\s+/g, " ").toUpperCase());
 
 export function createStageTwoMission({ order }) {
   let cursor = 0;
