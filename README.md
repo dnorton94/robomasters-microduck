@@ -172,12 +172,14 @@ autonomous profiles and installed modules.
 When the hidden budget is exhausted, a containment-breach notice locks the run
 until the participant selects **Restart Mission**, which resets Stage One's
 attempt budget, stability and plate cycle.
-Battery use follows what the duck actually does: movement, active sensors,
+During missions, battery use follows what the duck actually does: movement, active sensors,
 declared compute intensity/update rate, audio playback and reported inference
 bursts all consume power. Attached but inactive behaviours add only a small
 standby load; source-code length has no effect. Custom behaviours can declare a
 `resources` profile and call `reportWork(...)` for costly bursts such as object
 detection, OCR, local-LLM inference or speech processing.
+Testing Bay does not consume mission battery, so participants can develop and
+calibrate behaviours without spending a mission attempt's energy budget.
 Custom code can inspect the observed route and containment stability through
 `sensors.missionResources`, but not the hidden attempt budget.
 The duck must solve the plate's hidden timing protocol using autonomous control;

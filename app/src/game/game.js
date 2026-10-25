@@ -2658,23 +2658,24 @@ async function boot({ scene, camera, renderer }) {
     }
     syncRig();
     const sensorNow = performance.now();
-    const batteryCommand = controller.getCommand();
-    const movementLoad = Math.min(1, Math.hypot(batteryCommand[0], batteryCommand[1]) +
-      Math.abs(batteryCommand[2]) * .5);
-    const activeProfile = store().autonomyProfiles.find((profile) => profile.id === store().autonomyProfileId);
-    const attachedProfiles = store().autonomyEnabled
-      ? (activeProfile?.behaviors ?? []).map(({ behavior }) =>
-        getAutonomousResourceProfile(behavior))
-      : [];
-    const powerDemand = autonomousSource.getPowerDemand();
-    const drainRate = batteryDrainPerSecond({
-      movementLoad,
-      activeProfile: powerDemand.active ? powerDemand.profile : undefined,
-      attachedProfiles,
-      runtimeCompute: powerDemand.active ? powerDemand.runtimeCompute : 0,
-      speakerPlaying: speakerApi.getState().status === "playing",
-    });
-    batteryLevel = Math.max(0, batteryLevel - dt * drainRate);
+    if (store().environmentMode === "mission") {
+      const batteryCommand = controller.getCommand();
+      const movementLoad = Math.min(1, Math.hypot(batteryCommand[0], batteryCommand[1]) +
+        Math.abs(batteryCommand[2]) * .5);
+      const activeProfile = store().autonomyProfiles.find((profile) =>
+        profile.id === store().autonomyProfileId);
+      const attachedProfiles = (activeProfile?.behaviors ?? []).map(({ behavior }) =>
+        getAutonomousResourceProfile(behavior));
+      const powerDemand = autonomousSource.getPowerDemand();
+      const drainRate = batteryDrainPerSecond({
+        movementLoad,
+        activeProfile: powerDemand.active ? powerDemand.profile : undefined,
+        attachedProfiles,
+        runtimeCompute: powerDemand.active ? powerDemand.runtimeCompute : 0,
+        speakerPlaying: speakerApi.getState().status === "playing",
+      });
+      batteryLevel = Math.max(0, batteryLevel - dt * drainRate);
+    }
     if (sensorNow - batteryPublishedAt >= 250) {
       batteryPublishedAt = sensorNow;
       const levelPct = Math.round(batteryLevel * 10) / 10;
