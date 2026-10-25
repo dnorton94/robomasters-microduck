@@ -1506,6 +1506,10 @@ async function boot({ scene, camera, renderer }) {
         obstaclePlacement: false, ballActive: false });
       relocateRedPlate({ delay: 0, increment: false });
     } else {
+      // Mission geometry must never leak into the Testing Bay. Stage Three's
+      // instruction wall is kept resident for fast stage re-entry, but is a
+      // mission-only scene object and must be hidden at the mode boundary.
+      stageThreeWall.visible = false;
       if (store().mission.stage === 2) clearObstacles();
       stageTwoDecals.forEach((decal) => { decal.visible = false; });
       obstacleMeshes.slice(0, 3).forEach((mesh) => { mesh.material = obstacleMaterial; });
