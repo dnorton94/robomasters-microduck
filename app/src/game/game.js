@@ -53,7 +53,7 @@ import { WaypointSource } from "./controls/waypoint.js";
 import { PolicyPreviewSource } from "./controls/policy-preview.js";
 import { AutonomousSource } from "./autonomy/autonomous-source.js";
 import { createSimPerception } from "./autonomy/perception.js";
-import { hasAutonomousBehavior } from "./autonomy/behavior-registry.js";
+import { getAutonomousResourceProfile, hasAutonomousBehavior } from "./autonomy/behavior-registry.js";
 import { publishTofFrame, tofApi } from "./tof-sensor.js";
 import { publishNfcState, nfcApi } from "./nfc-sensor.js";
 import { publishImuState } from "./imu-sensor.js";
@@ -62,7 +62,8 @@ import { createRedPlateMission, RED_PLATE_SIZE } from "./missions/red-plate.js";
 import { acceptsStageThreeCode, acceptsStageTwoCode, createStageTwoMission, STAGE_TWO_CUBES } from "./missions/stage-two.js";
 import { setMissionNetworkLock } from "./missions/network-lock.js";
 import { MICRODUCK_HARDWARE } from "./hardware-spec.js";
-import { STAGE_ONE_MAX_ATTEMPTS, inferRoute, moduleEnergyMultiplier, routeRisk } from "./missions/mission-resources.js";
+import { STAGE_ONE_MAX_ATTEMPTS, inferRoute, routeRisk } from "./missions/mission-resources.js";
+import { batteryDrainPerSecond } from "./power-model.js";
 import * as fx from "./fx/fx-wireframe.js";
 import { createWaypointMarker } from "./fx/waypoint-marker.js";
 import { createCeremony, CAM_RESET_S } from "./ceremony.js";
@@ -2661,9 +2662,19 @@ async function boot({ scene, camera, renderer }) {
     const movementLoad = Math.min(1, Math.hypot(batteryCommand[0], batteryCommand[1]) +
       Math.abs(batteryCommand[2]) * .5);
     const activeProfile = store().autonomyProfiles.find((profile) => profile.id === store().autonomyProfileId);
-    const moduleCount = Math.max(1, activeProfile?.behaviors?.length ?? 1);
-    const moduleLoad = store().environmentMode === "mission" ? moduleEnergyMultiplier(moduleCount) : 1;
-    batteryLevel = Math.max(0, batteryLevel - dt * (0.0025 + movementLoad * 0.012) * moduleLoad);
+    const attachedProfiles = store().autonomyEnabled
+      ? (activeProfile?.behaviors ?? []).map(({ behavior }) =>
+        getAutonomousResourceProfile(behavior))
+      : [];
+    const powerDemand = autonomousSource.getPowerDemand();
+    const drainRate = batteryDrainPerSecond({
+      movementLoad,
+      activeProfile: powerDemand.active ? powerDemand.profile : undefined,
+      attachedProfiles,
+      runtimeCompute: powerDemand.active ? powerDemand.runtimeCompute : 0,
+      speakerPlaying: speakerApi.getState().status === "playing",
+    });
+    batteryLevel = Math.max(0, batteryLevel - dt * drainRate);
     if (sensorNow - batteryPublishedAt >= 250) {
       batteryPublishedAt = sensorNow;
       const levelPct = Math.round(batteryLevel * 10) / 10;

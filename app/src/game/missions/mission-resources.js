@@ -8,7 +8,3 @@ export function inferRoute(traveledM, directDistanceM) {
   const ratio = traveledM / Math.max(0.1, directDistanceM);
   return ratio <= 1.25 ? "direct" : ratio <= 1.75 ? "balanced" : "cautious";
 }
-
-export function moduleEnergyMultiplier(moduleCount) {
-  return 1 + (Math.max(1, moduleCount) - 1) * 0.18;
-}

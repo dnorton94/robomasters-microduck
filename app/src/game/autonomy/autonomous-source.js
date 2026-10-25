@@ -1,5 +1,5 @@
 import { relativeTarget, wrapAngle } from "./perception.js";
-import { getCustomAutonomousBehavior } from "./behavior-registry.js";
+import { getAutonomousResourceProfile, getCustomAutonomousBehavior } from "./behavior-registry.js";
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
@@ -27,6 +27,8 @@ export class AutonomousSource {
   #kickCooldown = 0;
   #wasTrying = false;
   #customController = null;
+  #resourceProfile = getAutonomousResourceProfile("roam");
+  #runtimeCompute = 0;
 
   constructor({ perception, getVelocityLimits, getSensors = () => ({}), manualActive, onStatus = () => {} }) {
     this.#perception = perception;
@@ -47,6 +49,8 @@ export class AutonomousSource {
     const custom = getCustomAutonomousBehavior(mode);
     this.#mode = custom ? mode : mode === "chase" ? "chase" : "roam";
     this.#customController = custom?.create?.() ?? null;
+    this.#resourceProfile = getAutonomousResourceProfile(this.#mode);
+    this.#runtimeCompute = 0;
     this.#goal = null;
     this.#stillFor = 0;
     this.#recoverFor = 0;
@@ -56,8 +60,13 @@ export class AutonomousSource {
 
   stop() { this.configure({ enabled: false }); }
 
+  getPowerDemand() {
+    return { active: this.isActive(), profile: this.#resourceProfile, runtimeCompute: this.#runtimeCompute };
+  }
+
   poll(dt) {
     this.command.fill(0);
+    this.#runtimeCompute = 0;
     if (!this.#enabled) { this.#wasTrying = false; return; }
     if (this.#manualActive()) {
       this.#setStatus("Manual override");
@@ -70,6 +79,10 @@ export class AutonomousSource {
       const limits = this.#getVelocityLimits();
       this.#customController.step?.({ world, sensors: this.#getSensors(), command: this.command, limits, dt,
         setStatus: (value) => this.#setStatus(value),
+        reportWork: ({ compute = 0, durationS = dt } = {}) => {
+          this.#runtimeCompute += Math.max(0, Number(compute) || 0) *
+            Math.max(0, Number(durationS) || 0) / Math.max(dt, 1e-4);
+        },
         emitAction: (action, meta = {}) => this.onAction(action, { ...meta, autonomous: true }) });
       this.#wasTrying = Math.abs(this.command[0]) > 0.04 || Math.abs(this.command[2]) > 0.15;
       return;
