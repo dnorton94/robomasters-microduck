@@ -1598,8 +1598,17 @@ async function boot({ scene, camera, renderer }) {
       redPlateAvailable = false;
       redPlate.visible = false;
       clearObstacles();
+      ball?.hideImmediately({ parkPhysics: parkBallPhysics });
+      ballActive = false;
+      waypointSource.cancel();
+      obstaclePlacement = false;
+      nfcPlacement = false;
+      renderer.domElement.style.cursor = "";
+      publishNfcState({ placing: false });
+      autonomousSource.configure({ enabled: true, mode: store().autonomyMode });
       showStageThreeWall();
-      setStore({ mission: { stage: 3, status: "active", attempt: 1 } });
+      setStore({ mission: { stage: 3, status: "active", attempt: 1 },
+        autonomyEnabled: true, policiesVisible: false, obstaclePlacement: false, ballActive: false });
       return true;
     }
     if (!acceptsStageTwoCode(code)) return false;

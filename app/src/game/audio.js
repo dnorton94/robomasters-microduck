@@ -107,9 +107,8 @@ export function preloadSfx() {
 export function playSfx(name, { gain = 1, rate = 1, out = null } = {}) {
   if (SOUND_DISABLED) return;
   const c = audioCtx();
-  if (c.state === "suspended") return; // pre-gesture: stay silent, don't queue
   const take = (Math.random() * SFX_TAKES[name]) | 0;
-  bufferFor(takeUrl(name, take)).then((buf) => {
+  Promise.all([c.state === "suspended" ? c.resume() : Promise.resolve(), bufferFor(takeUrl(name, take))]).then(([, buf]) => {
     const src = c.createBufferSource();
     src.buffer = buf;
     src.playbackRate.value = rate;
@@ -128,8 +127,7 @@ export function playSfx(name, { gain = 1, rate = 1, out = null } = {}) {
 export function playUrl(url, { bus = "voice", gain = 1, rate = 1 } = {}) {
   if (SOUND_DISABLED) return;
   const c = audioCtx();
-  if (c.state === "suspended") return;
-  bufferFor(url).then((buf) => {
+  Promise.all([c.state === "suspended" ? c.resume() : Promise.resolve(), bufferFor(url)]).then(([, buf]) => {
     const src = c.createBufferSource();
     src.buffer = buf;
     src.playbackRate.value = rate;
