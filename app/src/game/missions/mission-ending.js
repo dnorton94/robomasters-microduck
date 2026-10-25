@@ -2,7 +2,7 @@ const ENDINGS = Object.freeze({
   restored: Object.freeze({
     id: "restored",
     title: "THE VAULT BREATHES AGAIN",
-    copy: "A.R.I.A. answers. The recovered energy stabilises The Vault, restores the city grid and leaves enough reserve power to guide every unit home. Humanity inherits more than a solution: it inherits choices still left to make.",
+    copy: "A.R.I.A. answers. The recovered energy stabilises The Vault, restores the city grid and leaves enough reserve power to guide every unit home. Humanity inherits more than a solution. It inherits choices still left to make.",
   }),
   costly: Object.freeze({
     id: "costly",
@@ -12,7 +12,7 @@ const ENDINGS = Object.freeze({
   pyrrhic: Object.freeze({
     id: "pyrrhic",
     title: "THE LAST TRANSMISSION",
-    copy: "A.R.I.A. spends the final reserve to restart the grid. The city survives, but The Vault seals behind Microduck as containment fails. The objective was completed—yet the outcome asks whether completion alone was ever enough.",
+    copy: "A.R.I.A. spends the final reserve to restart the grid. The city survives, but The Vault seals behind Microduck as containment fails. The objective was completed. Yet the outcome asks whether completion alone was ever enough.",
   }),
 });
 
