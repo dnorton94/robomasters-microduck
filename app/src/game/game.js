@@ -1424,6 +1424,7 @@ async function boot({ scene, camera, renderer }) {
   stageThreeWall.position.set(0, .72, -ARENA_HALF + .035);
   scene.add(stageThreeWall);
   let stageThreeInstruction = null;
+  let briefingResetBudget = false;
   function showStageThreeWall() {
     stageThreeWall.clear();
     const words = ["STARLIGHT", "NIGHTFALL", "MOONBEAM", "FIREFLY", "SKYLARK"];
@@ -1515,6 +1516,37 @@ async function boot({ scene, camera, renderer }) {
     relocateRedPlate({ delay: 0, increment: false });
     return true;
   }
+  function prepareStageBriefing(stage, { resetBudget = false, fullMission = false } = {}) {
+    clearTimeout(redPlateTimer);
+    clearTimeout(redPlateIdleTimer);
+    redPlateAvailable = false;
+    redPlate.visible = false;
+    stageThreeWall.visible = false;
+    clearObstacles();
+    stageTwoDecals.forEach((decal) => { decal.visible = false; });
+    autonomousSource.configure({ enabled: false, mode: store().autonomyMode });
+    briefingResetBudget = resetBudget;
+    const current = store().mission;
+    setStore({ mission: { ...current, stage, status: "briefing",
+      attempt: resetBudget ? 1 : current.attempt,
+      attemptsRemaining: resetBudget ? STAGE_ONE_MAX_ATTEMPTS : current.attemptsRemaining,
+      containment: fullMission ? 0 : current.containment },
+      autonomyEnabled: true, policiesVisible: false, obstaclePlacement: false, ballActive: false });
+  }
+  function enterMissionStage() {
+    if (store().environmentMode !== "mission" || store().mission.status !== "briefing") return false;
+    const stage = store().mission.stage;
+    autonomousSource.configure({ enabled: true, mode: store().autonomyMode });
+    if (stage === 2) startStageTwoRound({ resetBudget: briefingResetBudget });
+    else if (stage === 3) startStageThree({ resetBudget: briefingResetBudget, newInstruction: true });
+    else {
+      redPlateMission = createRedPlateMission();
+      setStore({ mission: { ...store().mission, stage: 1, status: "ready" } });
+      relocateRedPlate({ delay: 0, increment: false });
+    }
+    briefingResetBudget = false;
+    return true;
+  }
   function setEnvironmentMode(mode) {
     const mission = mode === "mission";
     setMissionNetworkLock(mission);
@@ -1546,15 +1578,9 @@ async function boot({ scene, camera, renderer }) {
       // Mission locks autonomy on but runs the controller configuration the
       // participant prepared and tested in the Testing Bay. Their additions
       // to either Roam or Chase therefore carry into the assessment unchanged.
-      autonomousSource.configure({ enabled: true, mode: store().autonomyMode });
       setStore({ autonomyEnabled: true, policiesVisible: false,
         obstaclePlacement: false, ballActive: false });
-      const missionStage = store().mission.stage;
-      if (missionStage === 2) startStageTwoRound();
-      else if (missionStage === 3) {
-        if (stageThreeInstruction) stageThreeWall.visible = true;
-        else showStageThreeWall();
-      } else relocateRedPlate({ delay: 0, increment: false });
+      prepareStageBriefing(store().mission.stage);
     } else {
       // Mission geometry must never leak into the Testing Bay. Stage Three's
       // instruction wall is kept resident for fast stage re-entry, but is a
@@ -1693,12 +1719,11 @@ async function boot({ scene, camera, renderer }) {
       nfcPlacement = false;
       renderer.domElement.style.cursor = "";
       publishNfcState({ placing: false });
-      autonomousSource.configure({ enabled: true, mode: store().autonomyMode });
-      startStageThree({ resetBudget: true, newInstruction: true });
+      prepareStageBriefing(3, { resetBudget: true });
       return true;
     }
     if (!acceptsStageTwoCode(code)) return false;
-    startStageTwoRound({ resetBudget: true });
+    prepareStageBriefing(2, { resetBudget: true });
     return true;
   }
 
@@ -2658,7 +2683,7 @@ async function boot({ scene, camera, renderer }) {
     }
     syncRig();
     const sensorNow = performance.now();
-    if (store().environmentMode === "mission") {
+    if (store().environmentMode === "mission" && store().mission.status !== "briefing") {
       const batteryCommand = controller.getCommand();
       const movementLoad = Math.min(1, Math.hypot(batteryCommand[0], batteryCommand[1]) +
         Math.abs(batteryCommand[2]) * .5);
@@ -2919,16 +2944,8 @@ async function boot({ scene, camera, renderer }) {
 
   function restartCurrentMissionStage() {
     if (store().environmentMode !== "mission") return false;
-    if (store().mission.stage === 1) return restartStageOne();
-    if (store().mission.stage === 2) {
-      startStageTwoRound({ resetBudget: true });
-      return true;
-    }
-    if (store().mission.stage === 3) {
-      startStageThree({ resetBudget: true, newInstruction: true });
-      return true;
-    }
-    return false;
+    prepareStageBriefing(store().mission.stage, { resetBudget: true });
+    return true;
   }
 
   function restartEntireMission() {
@@ -2940,7 +2957,8 @@ async function boot({ scene, camera, renderer }) {
     batteryLevel = 100;
     setStore({ battery: { ...store().battery, levelPct: 100, voltageV: 8.4,
       estimatedMinutes: 45, timestamp: performance.now() } });
-    return restartStageOne({ fullMission: true });
+    prepareStageBriefing(1, { resetBudget: true, fullMission: true });
+    return true;
   }
 
   // ── Public surface for the React UI ──────────────────────────────────
@@ -2959,6 +2977,7 @@ async function boot({ scene, camera, renderer }) {
       reconcileLoco();
     },
     resetSim,
+    enterMissionStage,
     playOfficialSound,
     setAutonomy: ({ enabled, mode, profileId = null, behaviorId = null } = {}) => {
       const nextMode = hasAutonomousBehavior(mode) ? mode : "roam";

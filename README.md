@@ -152,6 +152,9 @@ inputs without rewriting the displays or autonomous controller.
 ### Mission mode
 
 Use the **Testing Bay / Mission** control to enter Stage One: **The Red Plate**.
+Each stage opens with a short narrative briefing. Mission evaluation, autonomy,
+timers and battery use remain paused until **Enter Stage** is selected; the
+briefing establishes atmosphere without revealing the stage's solution.
 Mission intent is inferred from the system the participant builds rather than
 selected in a form. The simulator observes whether MicroDuck actually follows
 a direct, balanced or cautious path: shorter routes conserve energy but expose

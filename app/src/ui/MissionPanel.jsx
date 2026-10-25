@@ -11,6 +11,21 @@ const plateFlash = keyframes`
   50% { opacity: .3; }
 `;
 
+const STAGE_BRIEFINGS = {
+  1: {
+    title: "THE OUTER SEAL",
+    copy: "The Vault's outer systems are dark. A dormant access chamber lies ahead, its safeguards still active. A.R.I.A. remains silent.",
+  },
+  2: {
+    title: "THE CORE CHAMBER",
+    copy: "Beyond the first seal, three experimental energy cores wait inside a fractured verification chamber. The blackout has scrambled the facility's records.",
+  },
+  3: {
+    title: "THE SILENT GUARDIAN",
+    copy: "At the heart of The Vault, A.R.I.A.'s final chamber is still drawing power. Whatever happened here left one last channel open.",
+  },
+};
+
 export default function MissionPanel() {
   const [code, setCode] = useState("");
   const [codeError, setCodeError] = useState(false);
@@ -36,7 +51,29 @@ export default function MissionPanel() {
     setCodeError(!accepted);
     if (accepted) setCode("");
   };
+  const briefing = STAGE_BRIEFINGS[mission.stage] ?? STAGE_BRIEFINGS[1];
   return <>
+    {mission.status === "briefing" && <Box role="dialog" aria-modal="true" aria-label={`Stage ${mission.stage} briefing`}
+      sx={{ position: "fixed", zIndex: 30, inset: 0, display: "grid", placeItems: "center",
+        p: 2, background: "rgba(3,5,9,.78)", backdropFilter: "blur(4px)" }}>
+      <Box sx={{ width: 460, maxWidth: "calc(100vw - 2rem)", p: 2.4,
+        border: `3px solid ${CREAM}`, background: "rgba(7,8,12,.98)",
+        boxShadow: `9px 9px 0 ${COMIC_INK}` }}>
+        <Box sx={{ color: ORANGE, fontFamily: MONO, fontSize: ".66rem", letterSpacing: ".16em" }}>
+          MISSION BRIEFING · STAGE {mission.stage}
+        </Box>
+        <Box sx={{ mt: .7, color: CREAM, fontFamily: ANTON, fontSize: "1.7rem", letterSpacing: ".06em" }}>
+          {briefing.title}
+        </Box>
+        <Box sx={{ mt: 1, color: "rgba(250,248,242,.82)", fontFamily: MONO,
+          fontSize: ".76rem", lineHeight: 1.65 }}>{briefing.copy}</Box>
+        <Box component="button" type="button" autoFocus onClick={() => gameApi.enterMissionStage?.()}
+          sx={{ mt: 2, width: "100%", py: 1, border: 0, background: ORANGE,
+            color: COMIC_INK, fontFamily: ANTON, fontSize: "1.05rem", letterSpacing: ".08em" }}>
+          ENTER STAGE
+        </Box>
+      </Box>
+    </Box>}
     {showContainment && mission.status !== "success" && mission.status !== "breach" &&
       <Box role="status" aria-live="polite" sx={{ position: "fixed", zIndex: 9, top: 82, left: "50%",
         transform: "translateX(-50%)", px: 1.4, py: .75, border: `2px solid ${stability <= 30 ? "#ff5b52" : ORANGE}`,
