@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { batteryDrainPerSecond, normalizeResourceProfile } from "../src/game/power-model.js";
+import { batteryDrainPerSecond, hasCompleteResourceDeclaration, normalizeResourceProfile }
+  from "../src/game/power-model.js";
 
 test("movement consumes more power than standing idle", () => {
   const idle = batteryDrainPerSecond();
@@ -30,7 +31,7 @@ test("inactive attached behaviours draw less than active inference", () => {
   assert.ok(inference > standby);
 });
 
-test("resource declarations are sanitized and support zero standby", () => {
+test("resource declarations are sanitized and retain a minimum standby cost", () => {
   const profile = normalizeResourceProfile({
     standby: 0,
     compute: 2,
@@ -38,9 +39,19 @@ test("resource declarations are sanitized and support zero standby", () => {
     sensors: ["camera", "camera", "unknown"],
   });
   assert.deepEqual(profile, {
-    standby: 0,
+    standby: 0.02,
     compute: 1,
     updateRateHz: 0,
     sensors: ["camera"],
   });
+});
+
+test("custom resources must completely and honestly describe their workload", () => {
+  assert.equal(hasCompleteResourceDeclaration({
+    standby: 0.03, compute: 0.7, updateRateHz: 10, sensors: ["camera", "tof"],
+  }), true);
+  assert.equal(hasCompleteResourceDeclaration({ compute: 0.7, sensors: ["camera"] }), false);
+  assert.equal(hasCompleteResourceDeclaration({
+    standby: 0.03, compute: 0.7, updateRateHz: 10, sensors: ["invented-sensor"],
+  }), false);
 });

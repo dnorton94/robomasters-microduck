@@ -1,10 +1,24 @@
 const SENSOR_LOAD = Object.freeze({ camera: 0.0015, tof: 0.0006, imu: 0.0002,
   nfc: 0.0001, microphone: 0.0015, speaker: 0.001 });
+const MINIMUM_STANDBY = 0.02;
+
+export function hasCompleteResourceDeclaration(resources) {
+  if (!resources || typeof resources !== "object" || Array.isArray(resources)) return false;
+  if (!["standby", "compute", "updateRateHz", "sensors"].every((key) =>
+    Object.hasOwn(resources, key))) return false;
+  if (!Array.isArray(resources.sensors) || resources.sensors.some((sensor) =>
+    !(sensor in SENSOR_LOAD))) return false;
+  const standby = Number(resources.standby);
+  const compute = Number(resources.compute);
+  const updateRateHz = Number(resources.updateRateHz);
+  return Number.isFinite(standby) && standby >= 0 && Number.isFinite(compute) &&
+    compute >= 0 && compute <= 1 && Number.isFinite(updateRateHz) && updateRateHz >= 0;
+}
 
 export function normalizeResourceProfile(resources = {}) {
   const numberOr = (value, fallback) => Number.isFinite(Number(value)) ? Number(value) : fallback;
   return Object.freeze({
-    standby: Math.max(0, numberOr(resources.standby, 0.02)),
+    standby: Math.max(MINIMUM_STANDBY, numberOr(resources.standby, MINIMUM_STANDBY)),
     compute: Math.max(0, Math.min(1, numberOr(resources.compute, 0))),
     updateRateHz: Math.max(0, numberOr(resources.updateRateHz, 0)),
     sensors: Object.freeze([...new Set(Array.isArray(resources.sensors) ? resources.sensors : [])]

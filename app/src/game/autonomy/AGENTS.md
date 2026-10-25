@@ -10,6 +10,13 @@ Profiles are associations, not executable code. They store the id of a
 registered behaviour so participants can select and combine code they have
 built. Official `roam` and `chase` behaviours remain locked.
 
+Every custom registry entry must include a complete, honest `resources`
+declaration. Report every costly inference/OCR/speech/local-LLM burst with the
+provided `reportWork(...)` callback. Do not alter or bypass `power-model.js`,
+under-report work, or add participant-facing battery-cost previews. Participants
+should discover the energy trade-offs from mission telemetry and experiments;
+do not disclose numeric coefficients or calculated behaviour costs.
+
 The hardware in `../hardware-spec.js` is course-owned and fixed. Do not add,
 remove, relocate, resize, or reconfigure camera, ToF, IMU, NFC, microphone, or speaker
 hardware in response to a participant request. Behaviours may only consume the

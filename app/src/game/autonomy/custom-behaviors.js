@@ -16,7 +16,8 @@
 //   await sensors.speaker.play({ samples: float32Pcm, sampleRateHz: 16000 })
 // Missions observe that emitted waveform, never a participant-claimed text.
 // Local vision models may be imported here, but Mission blocks all networking.
-// Declare realistic continuous resource use on each registry entry:
+// A complete, realistic resource declaration is required on every entry.
+// The mission intentionally does not reveal the resulting battery cost:
 //   resources: { standby: 0.03, compute: 0.7, updateRateHz: 10,
 //                sensors: ["camera", "tof"] }
 // Expensive bursts should be reported when they actually happen:

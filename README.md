@@ -180,6 +180,10 @@ standby load; source-code length has no effect. Custom behaviours can declare a
 detection, OCR, local-LLM inference or speech processing.
 Testing Bay does not consume mission battery, so participants can develop and
 calibrate behaviours without spending a mission attempt's energy budget.
+The simulator deliberately does not show predicted per-behaviour costs:
+participants must use battery telemetry and mission trials to reason about the
+trade-offs in the modules they choose. Coding agents are told about the power
+accounting contract so newly generated behaviours remain part of that mechanic.
 Custom code can inspect the observed route and containment stability through
 `sensors.missionResources`, but not the hidden attempt budget.
 The duck must solve the plate's hidden timing protocol using autonomous control;
