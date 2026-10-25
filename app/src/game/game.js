@@ -1491,7 +1491,9 @@ async function boot({ scene, camera, renderer }) {
       publishMission(redPlateMission.reset({ increment }));
       redPlateIdleTimer = setTimeout(() => {
         if (store().environmentMode === "mission" && redPlateAvailable)
-          relocateRedPlate();
+          // An unvisited plate relocates without consuming an attempt. Only
+          // entering and then failing the plate protocol affects stability.
+          relocateRedPlate({ increment: false });
       }, 5000);
     }, delay);
   }
@@ -1637,7 +1639,7 @@ async function boot({ scene, camera, renderer }) {
       mesh.rotation.y = stageTwoRound[index].yaw;
     });
     syncObstaclesToPhysics();
-    setStore({ obstacleCount: 3, mission: { stage: 2, status: "active", attempt: 1 } });
+    setStore({ obstacleCount: 3, mission: { ...store().mission, stage: 2, status: "active", attempt: 1 } });
     prepareStageTwoCubes(stageTwoRound).catch((error) => console.warn("Stage Two QR preparation failed", error));
   }
   function activateMissionStage(code) {
@@ -1657,7 +1659,7 @@ async function boot({ scene, camera, renderer }) {
       publishNfcState({ placing: false });
       autonomousSource.configure({ enabled: true, mode: store().autonomyMode });
       showStageThreeWall();
-      setStore({ mission: { stage: 3, status: "active", attempt: 1 },
+      setStore({ mission: { ...store().mission, stage: 3, status: "active", attempt: 1 },
         autonomyEnabled: true, policiesVisible: false, obstaclePlacement: false, ballActive: false });
       return true;
     }
@@ -2289,7 +2291,8 @@ async function boot({ scene, camera, renderer }) {
       for (let i = stageTwoReportQueue.length - 1; i >= 0; i--)
         if (now - stageTwoReportQueue[i].at >= 600 || observations.some((item) => item.scanVisible))
           stageTwoReportQueue.splice(i, 1);
-      if (result.changed || result.event) setStore({ mission: { stage: 2, ...result.state, attempt: 1 } });
+      if (result.changed || result.event)
+        setStore({ mission: { ...store().mission, stage: 2, ...result.state, attempt: 1 } });
       if (result.event === "wrong-order") startStageTwoRound();
       return;
     }

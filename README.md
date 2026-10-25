@@ -158,6 +158,11 @@ a direct, balanced or cautious path: shorter routes conserve energy but expose
 the mission to more containment risk, while longer routes consume more battery
 and reduce that risk. Failed attempts increase containment instability and
 eventually end the mission, without revealing how many opportunities remain.
+An unattended plate may relocate, but it does not consume an attempt or alter
+stability; those consequences occur only after MicroDuck enters and fails the
+plate protocol. Stability notifications appear when that value changes.
+The resulting containment stability carries into Stages Two and Three rather
+than resetting when a stage access code is accepted.
 When the hidden budget is exhausted, a containment-breach notice locks the run
 until the participant selects **Restart Mission**, which resets Stage One's
 attempt budget, stability and plate cycle.

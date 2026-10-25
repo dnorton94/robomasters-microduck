@@ -20,20 +20,14 @@ export default function MissionPanel() {
   const mode = useGame((state) => state.environmentMode);
   const mission = useGame((state) => state.mission);
   useEffect(() => {
-    if (mode !== "mission" || mission.stage !== 1) {
+    if (mode !== "mission" || !mission.containment) {
       setShowContainment(false);
       return undefined;
     }
-    let hideTimer;
-    const reveal = () => {
-      setShowContainment(true);
-      window.clearTimeout(hideTimer);
-      hideTimer = window.setTimeout(() => setShowContainment(false), 2800);
-    };
-    const first = window.setTimeout(reveal, 5000);
-    const interval = window.setInterval(reveal, 15000);
-    return () => { window.clearTimeout(first); window.clearTimeout(hideTimer); window.clearInterval(interval); };
-  }, [mode, mission.stage]);
+    setShowContainment(true);
+    const hideTimer = window.setTimeout(() => setShowContainment(false), 2800);
+    return () => window.clearTimeout(hideTimer);
+  }, [mode, mission.stage, mission.containment]);
   if (!entered || menuOpen || mode !== "mission") return null;
   const standing = mission.status === "timing" || mission.status === "armed";
   const stability = Math.max(0, 100 - (mission.containment ?? 0));
@@ -43,7 +37,7 @@ export default function MissionPanel() {
     if (accepted) setCode("");
   };
   return <>
-    {mission.stage === 1 && showContainment && mission.status !== "success" &&
+    {showContainment && !(mission.stage === 1 && mission.status === "success") &&
       <Box role="status" aria-live="polite" sx={{ position: "fixed", zIndex: 9, top: 82, left: "50%",
         transform: "translateX(-50%)", px: 1.4, py: .75, border: `2px solid ${stability <= 30 ? "#ff5b52" : ORANGE}`,
         background: "rgba(7,8,12,.92)", color: CREAM, fontFamily: MONO, fontSize: ".68rem",
