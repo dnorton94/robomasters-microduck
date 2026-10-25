@@ -1469,8 +1469,8 @@ async function boot({ scene, camera, renderer }) {
       const risk = routeRisk(current.observedRoute);
       const containment = Math.min(100, (current.containment ?? 0) + risk);
       if (nextAttempt > STAGE_ONE_MAX_ATTEMPTS || containment >= 100) {
-        setStore({ mission: { ...current, stage: 1, status: "failed", attemptsRemaining: 0,
-          containment: 100, feedback: "ATTEMPTS EXHAUSTED · CONTAINMENT FAILURE" } });
+        setStore({ mission: { ...current, stage: 1, status: "breach", attemptsRemaining: 0,
+          containment, feedback: "ATTEMPTS EXHAUSTED · CONTAINMENT FAILURE" } });
         return;
       }
       setStore({ mission: { ...current, attempt: nextAttempt,
@@ -1497,8 +1497,8 @@ async function boot({ scene, camera, renderer }) {
       }, 5000);
     }, delay);
   }
-  function restartStageOne() {
-    if (store().environmentMode !== "mission" || store().mission.stage !== 1) return false;
+  function restartStageOne({ fullMission = false } = {}) {
+    if (store().environmentMode !== "mission" || (!fullMission && store().mission.stage !== 1)) return false;
     clearTimeout(redPlateTimer);
     clearTimeout(redPlateIdleTimer);
     redPlateMission = createRedPlateMission();
@@ -1509,7 +1509,8 @@ async function boot({ scene, camera, renderer }) {
     redPlateMaterial.emissive.setHex(0x360000);
     redPlateMaterial.emissiveIntensity = 1;
     setStore({ mission: { stage: 1, status: "ready", feedback: "LOCATE THE RED PLATE", attempt: 1,
-      attemptsRemaining: STAGE_ONE_MAX_ATTEMPTS, containment: 0, observedRoute: "direct" } });
+      attemptsRemaining: STAGE_ONE_MAX_ATTEMPTS,
+      containment: fullMission ? 0 : store().mission.containment, observedRoute: "direct" } });
     relocateRedPlate({ delay: 0, increment: false });
     return true;
   }
@@ -1613,7 +1614,7 @@ async function boot({ scene, camera, renderer }) {
       stageTwoDecals.push(decal);
     }));
   }
-  function startStageTwoRound() {
+  function startStageTwoRound({ resetBudget = false } = {}) {
     clearTimeout(redPlateTimer);
     clearTimeout(redPlateIdleTimer);
     redPlateAvailable = false;
@@ -1639,9 +1640,46 @@ async function boot({ scene, camera, renderer }) {
       mesh.rotation.y = stageTwoRound[index].yaw;
     });
     syncObstaclesToPhysics();
-    setStore({ obstacleCount: 3, mission: { ...store().mission, stage: 2, status: "active", attempt: 1 } });
+    setStore({ obstacleCount: 3, mission: { ...store().mission, stage: 2, status: "active",
+      attempt: resetBudget ? 1 : store().mission.attempt,
+      attemptsRemaining: resetBudget ? STAGE_ONE_MAX_ATTEMPTS : store().mission.attemptsRemaining } });
     prepareStageTwoCubes(stageTwoRound).catch((error) => console.warn("Stage Two QR preparation failed", error));
   }
+  function consumeStageAttempt(stage, feedback, restart) {
+    const current = store().mission;
+    const nextAttempt = current.attempt + 1;
+    const containment = Math.min(100, (current.containment ?? 0) + 22);
+    if (nextAttempt > STAGE_ONE_MAX_ATTEMPTS || containment >= 100) {
+      setStore({ mission: { ...current, stage, status: "breach", attemptsRemaining: 0,
+        containment, feedback } });
+      return false;
+    }
+    setStore({ mission: { ...current, stage, status: "active", attempt: nextAttempt,
+      attemptsRemaining: STAGE_ONE_MAX_ATTEMPTS + 1 - nextAttempt, containment, feedback } });
+    restart?.();
+    return true;
+  }
+  let lastStageThreeSpeakerSequence = 0;
+  function startStageThree({ resetBudget = false, newInstruction = true } = {}) {
+    clearObstacles();
+    ball?.hideImmediately({ parkPhysics: parkBallPhysics });
+    ballActive = false;
+    if (newInstruction || !stageThreeInstruction) showStageThreeWall();
+    else stageThreeWall.visible = true;
+    setStore({ mission: { ...store().mission, stage: 3, status: "active",
+      attempt: resetBudget ? 1 : store().mission.attempt,
+      attemptsRemaining: resetBudget ? STAGE_ONE_MAX_ATTEMPTS : store().mission.attemptsRemaining },
+      autonomyEnabled: true, policiesVisible: false, obstaclePlacement: false, ballActive: false });
+  }
+  speakerApi.subscribe((speaker) => {
+    if (speaker.status !== "playing" || speaker.sequence === lastStageThreeSpeakerSequence) return;
+    lastStageThreeSpeakerSequence = speaker.sequence;
+    if (store().environmentMode !== "mission" || store().mission.stage !== 3 ||
+      store().mission.status !== "active") return;
+    // Audio is a submission. Until a local speech evaluator confirms the
+    // phrase, the mission treats it as rejected and rotates the challenge.
+    consumeStageAttempt(3, "TRANSMISSION REJECTED", () => startStageThree({ newInstruction: true }));
+  });
   function activateMissionStage(code) {
     if (store().environmentMode !== "mission") return false;
     if (acceptsStageThreeCode(code)) {
@@ -1649,22 +1687,17 @@ async function boot({ scene, camera, renderer }) {
       clearTimeout(redPlateIdleTimer);
       redPlateAvailable = false;
       redPlate.visible = false;
-      clearObstacles();
-      ball?.hideImmediately({ parkPhysics: parkBallPhysics });
-      ballActive = false;
       waypointSource.cancel();
       obstaclePlacement = false;
       nfcPlacement = false;
       renderer.domElement.style.cursor = "";
       publishNfcState({ placing: false });
       autonomousSource.configure({ enabled: true, mode: store().autonomyMode });
-      showStageThreeWall();
-      setStore({ mission: { ...store().mission, stage: 3, status: "active", attempt: 1 },
-        autonomyEnabled: true, policiesVisible: false, obstaclePlacement: false, ballActive: false });
+      startStageThree({ resetBudget: true, newInstruction: true });
       return true;
     }
     if (!acceptsStageTwoCode(code)) return false;
-    startStageTwoRound();
+    startStageTwoRound({ resetBudget: true });
     return true;
   }
 
@@ -2291,9 +2324,13 @@ async function boot({ scene, camera, renderer }) {
       for (let i = stageTwoReportQueue.length - 1; i >= 0; i--)
         if (now - stageTwoReportQueue[i].at >= 600 || observations.some((item) => item.scanVisible))
           stageTwoReportQueue.splice(i, 1);
-      if (result.changed || result.event)
-        setStore({ mission: { ...store().mission, stage: 2, ...result.state, attempt: 1 } });
-      if (result.event === "wrong-order") startStageTwoRound();
+      if (result.event === "wrong-order" || result.event === "collision") {
+        consumeStageAttempt(2,
+          result.event === "collision" ? "CORE COLLISION · SEQUENCE VOID" : "SEQUENCE REJECTED",
+          () => startStageTwoRound());
+      } else if (result.changed || result.event) {
+        setStore({ mission: { ...store().mission, stage: 2, ...result.state } });
+      }
       return;
     }
     if (!redPlateAvailable) return;
@@ -2868,6 +2905,32 @@ async function boot({ scene, camera, renderer }) {
     if (store().ballActive !== ballActive) setStore({ ballActive });
   }
 
+  function restartCurrentMissionStage() {
+    if (store().environmentMode !== "mission") return false;
+    if (store().mission.stage === 1) return restartStageOne();
+    if (store().mission.stage === 2) {
+      startStageTwoRound({ resetBudget: true });
+      return true;
+    }
+    if (store().mission.stage === 3) {
+      startStageThree({ resetBudget: true, newInstruction: true });
+      return true;
+    }
+    return false;
+  }
+
+  function restartEntireMission() {
+    if (store().environmentMode !== "mission") return false;
+    clearObstacles();
+    clearNfcTags();
+    stageThreeWall.visible = false;
+    stageThreeInstruction = null;
+    batteryLevel = 100;
+    setStore({ battery: { ...store().battery, levelPct: 100, voltageV: 8.4,
+      estimatedMinutes: 45, timestamp: performance.now() } });
+    return restartStageOne({ fullMission: true });
+  }
+
   // ── Public surface for the React UI ──────────────────────────────────
   Object.assign(gameApi, {
     frame,
@@ -2947,7 +3010,8 @@ async function boot({ scene, camera, renderer }) {
     clearNfcTags,
     updateNfcTag,
     setEnvironmentMode,
-    resetMission: restartStageOne,
+    resetMission: restartCurrentMissionStage,
+    restartEntireMission,
     activateMissionStage,
     renderPov: (viewRenderer, viewCamera) => {
       // In kinematics.json, body `jaw_soft` carries joint `head_roll` and

@@ -163,6 +163,12 @@ stability; those consequences occur only after MicroDuck enters and fails the
 plate protocol. Stability notifications appear when that value changes.
 The resulting containment stability carries into Stages Two and Three rather
 than resetting when a stage access code is accepted.
+Stages Two and Three use their own hidden attempt budgets. Wrong QR sequences,
+cube collisions and rejected voice submissions reduce the carried stability;
+passive observation does not. A breach offers **Restart Stage**, which keeps
+battery and containment history, or **Restart Entire Mission**, which returns
+to Stage One and restores battery and containment while retaining the user's
+autonomous profiles and installed modules.
 When the hidden budget is exhausted, a containment-breach notice locks the run
 until the participant selects **Restart Mission**, which resets Stage One's
 attempt budget, stability and plate cycle.

@@ -37,7 +37,7 @@ export default function MissionPanel() {
     if (accepted) setCode("");
   };
   return <>
-    {showContainment && !(mission.stage === 1 && mission.status === "success") &&
+    {showContainment && mission.status !== "success" && mission.status !== "breach" &&
       <Box role="status" aria-live="polite" sx={{ position: "fixed", zIndex: 9, top: 82, left: "50%",
         transform: "translateX(-50%)", px: 1.4, py: .75, border: `2px solid ${stability <= 30 ? "#ff5b52" : ORANGE}`,
         background: "rgba(7,8,12,.92)", color: CREAM, fontFamily: MONO, fontSize: ".68rem",
@@ -47,10 +47,10 @@ export default function MissionPanel() {
     {standing && <Box aria-hidden sx={{ position: "fixed", inset: 0, zIndex: 8,
       pointerEvents: "none", background: "#20ff87", mixBlendMode: "screen",
       animation: `${plateFlash} .55s ease-in-out infinite` }} />}
-    {mission.status === "failed" && <Box aria-hidden sx={{ position: "fixed", inset: 8,
+    {(mission.status === "failed" || mission.status === "breach") && <Box aria-hidden sx={{ position: "fixed", inset: 8,
       zIndex: 8, pointerEvents: "none", border: "5px solid rgba(255,32,32,.72)",
       boxShadow: "inset 0 0 60px rgba(255,0,0,.32)" }} />}
-    {mission.stage === 1 && mission.status === "failed" && mission.attemptsRemaining === 0 &&
+    {mission.status === "breach" && mission.attemptsRemaining === 0 &&
       <Box role="alertdialog" aria-label="Containment breach" sx={{ position: "fixed", zIndex: 22,
         left: "50%", top: "22%", transform: "translateX(-50%)", width: 390,
         maxWidth: "calc(100vw - 2rem)", p: 2, border: "3px solid #ff5b52",
@@ -59,11 +59,18 @@ export default function MissionPanel() {
           CONTAINMENT BREACH
         </Box>
         <Box sx={{ mt: .6, color: CREAM, fontFamily: MONO, fontSize: ".68rem", lineHeight: 1.55 }}>
-          THE VAULT HAS LOCKED DOWN. REVIEW YOUR SYSTEM AND BEGIN A NEW MISSION RUN.
+          {mission.stage === 2 ? "CORE VALIDATION HAS COLLAPSED. REVIEW YOUR PERCEPTION AND NAVIGATION SYSTEM."
+            : mission.stage === 3 ? "A.R.I.A. HAS REJECTED FURTHER TRANSMISSIONS. REVIEW YOUR VOICE PIPELINE."
+            : "THE VAULT HAS LOCKED DOWN. REVIEW YOUR SYSTEM AND BEGIN A NEW MISSION RUN."}
         </Box>
-        <Box component="button" type="button" onClick={() => gameApi.resetMission?.()}
-          sx={{ mt: 1.2, width: "100%", py: .75, border: 0, background: "#ff5b52",
-            color: CREAM, fontFamily: ANTON, fontSize: "1rem" }}>RESTART MISSION</Box>
+        <Box sx={{ display: "flex", gap: .7, mt: 1.2 }}>
+          <Box component="button" type="button" onClick={() => gameApi.resetMission?.()}
+            sx={{ flex: 1, py: .75, border: `1px solid ${CREAM}`, background: "transparent",
+              color: CREAM, fontFamily: ANTON, fontSize: ".9rem" }}>RESTART STAGE</Box>
+          <Box component="button" type="button" onClick={() => gameApi.restartEntireMission?.()}
+            sx={{ flex: 1, py: .75, border: 0, background: "#ff5b52",
+              color: CREAM, fontFamily: ANTON, fontSize: ".9rem" }}>RESTART ENTIRE MISSION</Box>
+        </Box>
       </Box>}
     {mission.stage === 1 && mission.status === "success" && <Box role="dialog" aria-label="Stage two activation"
       sx={{ position: "fixed", zIndex: 20, left: "50%", top: "18%", transform: "translateX(-50%)",
