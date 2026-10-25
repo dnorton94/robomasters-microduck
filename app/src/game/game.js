@@ -1386,7 +1386,7 @@ async function boot({ scene, camera, renderer }) {
   reliefGridMat = grid.material; // relief drive mirrors uTopoScale into it
   const { wallMats, wallMeshes } = makeArenaWalls();
   for (const m of wallMeshes) scene.add(m);
-  const redPlateMission = createRedPlateMission();
+  let redPlateMission = createRedPlateMission();
   const redPlateMaterial = new THREE.MeshStandardMaterial({
     color: 0xa71919, emissive: 0x360000, roughness: 0.78, metalness: 0,
   });
@@ -1494,6 +1494,22 @@ async function boot({ scene, camera, renderer }) {
           relocateRedPlate();
       }, 5000);
     }, delay);
+  }
+  function restartStageOne() {
+    if (store().environmentMode !== "mission" || store().mission.stage !== 1) return false;
+    clearTimeout(redPlateTimer);
+    clearTimeout(redPlateIdleTimer);
+    redPlateMission = createRedPlateMission();
+    redPlateLocationIndex = -1;
+    redPlateAvailable = false;
+    redPlate.visible = false;
+    redPlateMaterial.color.setHex(0xa71919);
+    redPlateMaterial.emissive.setHex(0x360000);
+    redPlateMaterial.emissiveIntensity = 1;
+    setStore({ mission: { stage: 1, status: "ready", feedback: "LOCATE THE RED PLATE", attempt: 1,
+      attemptsRemaining: STAGE_ONE_MAX_ATTEMPTS, containment: 0, observedRoute: "direct" } });
+    relocateRedPlate({ delay: 0, increment: false });
+    return true;
   }
   function setEnvironmentMode(mode) {
     const mission = mode === "mission";
@@ -2928,7 +2944,7 @@ async function boot({ scene, camera, renderer }) {
     clearNfcTags,
     updateNfcTag,
     setEnvironmentMode,
-    resetMission: () => store().mission.stage === 1 && relocateRedPlate(),
+    resetMission: restartStageOne,
     activateMissionStage,
     renderPov: (viewRenderer, viewCamera) => {
       // In kinematics.json, body `jaw_soft` carries joint `head_roll` and

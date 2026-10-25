@@ -56,6 +56,21 @@ export default function MissionPanel() {
     {mission.status === "failed" && <Box aria-hidden sx={{ position: "fixed", inset: 8,
       zIndex: 8, pointerEvents: "none", border: "5px solid rgba(255,32,32,.72)",
       boxShadow: "inset 0 0 60px rgba(255,0,0,.32)" }} />}
+    {mission.stage === 1 && mission.status === "failed" && mission.attemptsRemaining === 0 &&
+      <Box role="alertdialog" aria-label="Containment breach" sx={{ position: "fixed", zIndex: 22,
+        left: "50%", top: "22%", transform: "translateX(-50%)", width: 390,
+        maxWidth: "calc(100vw - 2rem)", p: 2, border: "3px solid #ff5b52",
+        background: "rgba(12,3,4,.97)", boxShadow: `8px 8px 0 ${COMIC_INK}`, textAlign: "center" }}>
+        <Box sx={{ fontFamily: ANTON, color: "#ff5b52", fontSize: "1.7rem", letterSpacing: ".1em" }}>
+          CONTAINMENT BREACH
+        </Box>
+        <Box sx={{ mt: .6, color: CREAM, fontFamily: MONO, fontSize: ".68rem", lineHeight: 1.55 }}>
+          THE VAULT HAS LOCKED DOWN. REVIEW YOUR SYSTEM AND BEGIN A NEW MISSION RUN.
+        </Box>
+        <Box component="button" type="button" onClick={() => gameApi.resetMission?.()}
+          sx={{ mt: 1.2, width: "100%", py: .75, border: 0, background: "#ff5b52",
+            color: CREAM, fontFamily: ANTON, fontSize: "1rem" }}>RESTART MISSION</Box>
+      </Box>}
     {mission.stage === 1 && mission.status === "success" && <Box role="dialog" aria-label="Stage two activation"
       sx={{ position: "fixed", zIndex: 20, left: "50%", top: "18%", transform: "translateX(-50%)",
         width: 390, maxWidth: "calc(100vw - 2rem)", p: 2, border: `3px solid ${CREAM}`,

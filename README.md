@@ -158,6 +158,9 @@ a direct, balanced or cautious path: shorter routes conserve energy but expose
 the mission to more containment risk, while longer routes consume more battery
 and reduce that risk. Failed attempts increase containment instability and
 eventually end the mission, without revealing how many opportunities remain.
+When the hidden budget is exhausted, a containment-breach notice locks the run
+until the participant selects **Restart Mission**, which resets Stage One's
+attempt budget, stability and plate cycle.
 Every behaviour module attached to the active profile adds mission power draw.
 Custom code can inspect the observed route and containment stability through
 `sensors.missionResources`, but not the hidden attempt budget.
