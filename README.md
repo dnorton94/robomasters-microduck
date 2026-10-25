@@ -19,6 +19,7 @@ behaviour.
 - Placeable, collidable cube obstacles
 - Robot-eye POV camera
 - Simulated 8×8 Time-of-Flight depth sensor
+- Simulated battery level, voltage and estimated runtime telemetry
 - Simulated head and beak NFC readers with placeable tags
 - Opt-in browser microphone input
 - One **Sensors** button that hides or restores every sensor display
@@ -89,7 +90,7 @@ to their MuJoCo collision geometry.
 The top-right **Sensors** button toggles the complete sensor dashboard. Hiding
 the dashboard does not reset sensor readings, microphone permission or the
 individual visibility choices; showing it restores the previous state.
-Every sensor card can also be hidden and restored independently.
+Every sensor card, including the battery display, can also be hidden and restored independently.
 The button is available inside the simulator but is omitted from the home and
 pause screen.
 
@@ -139,6 +140,10 @@ accelerometer, three-axis gyroscope and roll/pitch/yaw orientation at 10 Hz.
 The body values come directly from MuJoCo's IMU sensors; the articulated head
 values are derived from its simulated pose. Extensions can subscribe through
 `imuApi` or `window.__microduckImu`.
+
+The **Battery** card reports simulated charge, pack voltage and estimated
+runtime. Movement increases its drain, and custom autonomous behaviours can
+read the same state through `sensors.battery` or `window.__microduckBattery`.
 
 The sensor adapters intentionally sit behind small publish/subscribe APIs so
 real camera, ToF, NFC, IMU or microphone sources can replace the simulation
@@ -204,7 +209,7 @@ The selected behaviour is carried into Mission.
 
 `app/src/game/hardware-spec.js` defines the fixed course hardware: one head
 camera, one 8×8 head ToF sensor, body/head IMUs, head/beak NFC antennas, one
-local microphone input and one mono head speaker. Participant behaviours may consume those devices but
+local microphone input, one mono head speaker and battery telemetry. Participant behaviours may consume those devices but
 must not add or reconfigure hardware. Repository agent instructions document
 this educational boundary; as with mission rules, a locally controlled browser
 checkout cannot provide cryptographic enforcement.

@@ -15,6 +15,7 @@ import MicrophonePanel from "./ui/MicrophonePanel.jsx";
 import TofPanel from "./ui/TofPanel.jsx";
 import NfcPanel from "./ui/NfcPanel.jsx";
 import ImuPanel from "./ui/ImuPanel.jsx";
+import BatteryPanel from "./ui/BatteryPanel.jsx";
 import MissionPanel from "./ui/MissionPanel.jsx";
 import { useGame } from "./store.js";
 import { installMissionNetworkLock } from "./game/missions/network-lock.js";
@@ -95,6 +96,7 @@ export default function App() {
       <TofPanel />
       <NfcPanel />
       <ImuPanel />
+      <BatteryPanel />
       <MissionPanel />
       <TouchOverlay />
       <BiosOverlay />

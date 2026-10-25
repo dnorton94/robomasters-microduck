@@ -563,6 +563,7 @@ async function boot({ scene, camera, renderer }) {
       imu: store().imu,
       microphone: store().microphone,
       speaker: speakerApi,
+      battery: store().battery,
     }),
     manualActive,
     onStatus: (autonomyStatus) => setStore({ autonomyStatus }),
@@ -2532,6 +2533,8 @@ async function boot({ scene, camera, renderer }) {
   // ── Per-frame drive, called by R3F's useFrame ────────────────────────
   let padWasConnected = null;
   let touchWasConnected = null;
+  let batteryLevel = 100;
+  let batteryPublishedAt = 0;
   function frame(dt) {
     controller.update(dt);
     padJaw = controller.getAxes().jaw;
@@ -2567,6 +2570,17 @@ async function boot({ scene, camera, renderer }) {
     }
     syncRig();
     const sensorNow = performance.now();
+    const batteryCommand = controller.getCommand();
+    const movementLoad = Math.min(1, Math.hypot(batteryCommand[0], batteryCommand[1]) +
+      Math.abs(batteryCommand[2]) * .5);
+    batteryLevel = Math.max(0, batteryLevel - dt * (0.0025 + movementLoad * 0.012));
+    if (sensorNow - batteryPublishedAt >= 250) {
+      batteryPublishedAt = sensorNow;
+      const levelPct = Math.round(batteryLevel * 10) / 10;
+      setStore({ battery: { ...store().battery, levelPct,
+        voltageV: Math.round((6.4 + batteryLevel * .02) * 100) / 100,
+        estimatedMinutes: Math.max(0, Math.round(batteryLevel * .45)), timestamp: sensorNow } });
+    }
     updateTofSensor(sensorNow);
     updateNfcSensors(sensorNow);
     updateImuSensors(sensorNow);

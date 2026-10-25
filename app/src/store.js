@@ -68,6 +68,7 @@ export const useGame = create(
     povFirstPerson: false,
     microphone: { status: "off", level: 0, error: null },
     microphoneVisible: true,
+    battery: { enabled: true, levelPct: 100, voltageV: 8.4, estimatedMinutes: 45, timestamp: 0 },
     imu: {
       body: { enabled: true, acceleration: [0, 0, 0], angularVelocity: [0, 0, 0], orientation: [0, 0, 0] },
       head: { enabled: true, acceleration: [0, 0, 0], angularVelocity: [0, 0, 0], orientation: [0, 0, 0] },

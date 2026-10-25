@@ -7,4 +7,5 @@ export const MICRODUCK_HARDWARE = Object.freeze({
   nfc: Object.freeze({ count: 2, mounts: Object.freeze(["head", "beak"]) }),
   microphone: Object.freeze({ count: 1, source: "local-browser-input" }),
   speaker: Object.freeze({ count: 1, mount: "head", channels: 1, sampleRateHz: 16000 }),
+  battery: Object.freeze({ count: 1, chemistry: "Li-ion", cells: 2, nominalVoltageV: 7.4 }),
 });
