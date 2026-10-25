@@ -152,6 +152,13 @@ inputs without rewriting the displays or autonomous controller.
 ### Mission mode
 
 Use the **Testing Bay / Mission** control to enter Stage One: **The Red Plate**.
+Before deployment, **Mission Intent** asks the participant to choose their
+priority and commit to a direct, balanced or cautious navigation strategy.
+These choices trade battery consumption against containment risk. Stage One
+has a limited attempt budget, failed attempts increase containment instability,
+and every behaviour module attached to the active profile adds mission power
+draw. The selected intent is also available to custom code as
+`sensors.missionIntent`.
 The duck must solve the plate's hidden timing protocol using autonomous control;
 the mission panel and plate lighting provide experimental feedback without
 publishing the thresholds in the interface. Manual entry is rejected, leaving

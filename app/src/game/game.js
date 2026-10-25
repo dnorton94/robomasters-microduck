@@ -62,6 +62,7 @@ import { createRedPlateMission, RED_PLATE_SIZE } from "./missions/red-plate.js";
 import { acceptsStageThreeCode, acceptsStageTwoCode, createStageTwoMission, STAGE_TWO_CUBES } from "./missions/stage-two.js";
 import { setMissionNetworkLock } from "./missions/network-lock.js";
 import { MICRODUCK_HARDWARE } from "./hardware-spec.js";
+import { STAGE_ONE_MAX_ATTEMPTS, moduleEnergyMultiplier, routeEnergyMultiplier, routeRisk } from "./missions/mission-resources.js";
 import * as fx from "./fx/fx-wireframe.js";
 import { createWaypointMarker } from "./fx/waypoint-marker.js";
 import { createCeremony, CAM_RESET_S } from "./ceremony.js";
@@ -564,6 +565,7 @@ async function boot({ scene, camera, renderer }) {
       microphone: store().microphone,
       speaker: speakerApi,
       battery: store().battery,
+      missionIntent: store().mission.intent,
     }),
     manualActive,
     onStatus: (autonomyStatus) => setStore({ autonomyStatus }),
@@ -1442,7 +1444,7 @@ async function boot({ scene, camera, renderer }) {
   }
   const publishMission = (result) => {
     if (!result.changed) return;
-    setStore({ mission: { stage: 1, ...result.state } });
+    setStore({ mission: { ...store().mission, stage: 1, ...result.state } });
     const active = result.state.status === "timing";
     const armed = result.state.status === "armed" || result.state.status === "success";
     const failed = result.state.status === "failed";
@@ -1456,8 +1458,21 @@ async function boot({ scene, camera, renderer }) {
     redPlateAvailable = false;
     redPlate.visible = false;
     stageThreeWall.visible = store().environmentMode === "mission" && store().mission.stage === 3;
-    setStore({ mission: { stage: 1, status: "relocating",
-      feedback: "PLATE SIGNAL LOST · SCANNING FLOOR", attempt: store().mission.attempt } });
+    if (increment) {
+      const current = store().mission;
+      const nextAttempt = current.attempt + 1;
+      const risk = routeRisk(current.intent?.route);
+      const containment = Math.min(100, (current.containment ?? 0) + risk);
+      if (nextAttempt > STAGE_ONE_MAX_ATTEMPTS || containment >= 100) {
+        setStore({ mission: { ...current, stage: 1, status: "failed", attemptsRemaining: 0,
+          containment: 100, feedback: "ATTEMPTS EXHAUSTED · CONTAINMENT FAILURE" } });
+        return;
+      }
+      setStore({ mission: { ...current, attempt: nextAttempt,
+        attemptsRemaining: STAGE_ONE_MAX_ATTEMPTS + 1 - nextAttempt, containment } });
+    }
+    setStore({ mission: { ...store().mission, stage: 1, status: "relocating",
+      feedback: "PLATE SIGNAL LOST · SCANNING FLOOR" } });
     redPlateTimer = setTimeout(() => {
       redPlateLocationIndex = (redPlateLocationIndex + 1) % redPlateLocations.length;
       redPlatePosition = redPlateLocations[redPlateLocationIndex];
@@ -1510,7 +1525,9 @@ async function boot({ scene, camera, renderer }) {
       else if (missionStage === 3) {
         if (stageThreeInstruction) stageThreeWall.visible = true;
         else showStageThreeWall();
-      } else relocateRedPlate({ delay: 0, increment: false });
+      } else if (store().mission.intent?.configured) relocateRedPlate({ delay: 0, increment: false });
+      else setStore({ mission: { ...store().mission, stage: 1, status: "intent",
+        feedback: "DEFINE MISSION INTENT" } });
     } else {
       // Mission geometry must never leak into the Testing Bay. Stage Three's
       // instruction wall is kept resident for fast stage re-entry, but is a
@@ -2264,7 +2281,7 @@ async function boot({ scene, camera, renderer }) {
       nowMs: now,
     });
     publishMission(result);
-    if (result.event === "early-exit" || result.event === "manual") relocateRedPlate();
+    if (result.event === "early-exit" || result.event === "manual" || result.event === "failed") relocateRedPlate();
   }
   function syncRig() {
     const qpos = data.qpos;
@@ -2573,7 +2590,12 @@ async function boot({ scene, camera, renderer }) {
     const batteryCommand = controller.getCommand();
     const movementLoad = Math.min(1, Math.hypot(batteryCommand[0], batteryCommand[1]) +
       Math.abs(batteryCommand[2]) * .5);
-    batteryLevel = Math.max(0, batteryLevel - dt * (0.0025 + movementLoad * 0.012));
+    const activeProfile = store().autonomyProfiles.find((profile) => profile.id === store().autonomyProfileId);
+    const moduleCount = Math.max(1, activeProfile?.behaviors?.length ?? 1);
+    const routeEnergy = store().environmentMode === "mission"
+      ? routeEnergyMultiplier(store().mission.intent?.route) : 1;
+    const moduleLoad = store().environmentMode === "mission" ? moduleEnergyMultiplier(moduleCount) : 1;
+    batteryLevel = Math.max(0, batteryLevel - dt * (0.0025 + movementLoad * 0.012) * routeEnergy * moduleLoad);
     if (sensorNow - batteryPublishedAt >= 250) {
       batteryPublishedAt = sensorNow;
       const levelPct = Math.round(batteryLevel * 10) / 10;
@@ -2896,6 +2918,16 @@ async function boot({ scene, camera, renderer }) {
     setEnvironmentMode,
     resetMission: () => store().mission.stage === 1 && relocateRedPlate(),
     activateMissionStage,
+    configureMissionIntent: (intent) => {
+      if (store().environmentMode !== "mission" || store().mission.stage !== 1) return false;
+      const priority = ["safety", "speed", "learning"].includes(intent?.priority) ? intent.priority : "safety";
+      const route = ["direct", "balanced", "cautious"].includes(intent?.route) ? intent.route : "balanced";
+      setStore({ mission: { ...store().mission, stage: 1, status: "ready", attempt: 1,
+        attemptsRemaining: STAGE_ONE_MAX_ATTEMPTS, containment: 0,
+        intent: { configured: true, priority, route } } });
+      relocateRedPlate({ delay: 0, increment: false });
+      return true;
+    },
     renderPov: (viewRenderer, viewCamera) => {
       // In kinematics.json, body `jaw_soft` carries joint `head_roll` and
       // therefore owns the MJCF head_camera frame.
