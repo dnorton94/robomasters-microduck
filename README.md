@@ -180,6 +180,10 @@ standby load; source-code length has no effect. Custom behaviours can declare a
 detection, OCR, local-LLM inference or speech processing.
 Testing Bay does not consume mission battery, so participants can develop and
 calibrate behaviours without spending a mission attempt's energy budget.
+Participants may also ask a coding agent to add or configure Testing Bay
+objects, props, obstacles, targets and visual features. Those extensions are
+kept outside Mission mode, where the course-owned geometry and evaluators take
+over unchanged.
 The simulator deliberately does not show predicted per-behaviour costs:
 participants must use battery telemetry and mission trials to reason about the
 trade-offs in the modules they choose. Coding agents are told about the power

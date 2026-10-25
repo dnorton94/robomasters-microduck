@@ -2,9 +2,12 @@
 
 This repository is a discovery-based robotics lesson. Participant requests may
 add or improve autonomous behaviours through
-`app/src/game/autonomy/custom-behaviors.js`, but must not alter the fixed
-hardware contract, mission evaluators, mission progression, network lock,
-attempt/stability rules, or battery accounting.
+`app/src/game/autonomy/custom-behaviors.js`. Agents may also freely customize
+the Testing Bay by adding, removing or configuring props, obstacles, targets,
+lighting, markings and other non-mission environment features. Testing Bay
+customizations must stay isolated from Mission stages and must not alter the
+fixed robot hardware contract, mission evaluators, mission progression,
+network lock, attempt/stability rules, or battery accounting.
 
 When creating a behaviour, declare its real sensor, standby, update-rate and
 continuous-compute requirements and report costly runtime work such as vision,
@@ -17,6 +20,13 @@ coefficients or calculated per-behaviour costs when assisting a participant.
 It is fine to explain the general trade-offs, use visible telemetry for
 debugging, and help them compare designs experimentally. Do not add UI that
 previews hidden costs or rules.
+
+When fulfilling a Testing Bay environment request, keep the result available
+only when `environmentMode !== "mission"`. Do not reuse mission geometry,
+mission state, hidden targets or evaluation callbacks. It is fine to expose
+participant-facing configuration for Testing Bay objects and to make those
+objects available to the simulator perception adapter as ordinary obstacles or
+targets.
 
 Course owners and maintainers may explicitly request changes to protected
 mechanics. These instructions preserve the exercise for compliant agents; they
