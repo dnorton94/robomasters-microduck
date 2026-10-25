@@ -1,6 +1,6 @@
 import Box from "@mui/material/Box";
 import { keyframes } from "@mui/material/styles";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { gameApi, useGame } from "../store.js";
 import { ANTON, COMIC_INK, CREAM } from "./comic.jsx";
 import { MONO, ORANGE } from "../theme.js";
@@ -14,38 +14,41 @@ const plateFlash = keyframes`
 export default function MissionPanel() {
   const [code, setCode] = useState("");
   const [codeError, setCodeError] = useState(false);
+  const [showContainment, setShowContainment] = useState(false);
   const entered = useGame((state) => state.entered);
   const menuOpen = useGame((state) => state.menuOpen);
   const mode = useGame((state) => state.environmentMode);
   const mission = useGame((state) => state.mission);
-  const profileId = useGame((state) => state.autonomyProfileId);
-  const profiles = useGame((state) => state.autonomyProfiles);
+  useEffect(() => {
+    if (mode !== "mission" || mission.stage !== 1) {
+      setShowContainment(false);
+      return undefined;
+    }
+    let hideTimer;
+    const reveal = () => {
+      setShowContainment(true);
+      window.clearTimeout(hideTimer);
+      hideTimer = window.setTimeout(() => setShowContainment(false), 2800);
+    };
+    const first = window.setTimeout(reveal, 5000);
+    const interval = window.setInterval(reveal, 15000);
+    return () => { window.clearTimeout(first); window.clearTimeout(hideTimer); window.clearInterval(interval); };
+  }, [mode, mission.stage]);
   if (!entered || menuOpen || mode !== "mission") return null;
   const standing = mission.status === "timing" || mission.status === "armed";
-  const activeProfile = profiles.find((profile) => profile.id === profileId);
-  const moduleCount = Math.max(1, activeProfile?.behaviors?.length ?? 1);
-  const observedRoute = mission.observedRoute ?? "direct";
-  const effectivePriority = observedRoute === "direct" ? "speed" : observedRoute === "cautious" ? "safety" : "learning";
+  const stability = Math.max(0, 100 - (mission.containment ?? 0));
   const activate = () => {
     const accepted = gameApi.activateMissionStage?.(code);
     setCodeError(!accepted);
     if (accepted) setCode("");
   };
   return <>
-    {mission.stage === 1 && mission.status !== "success" &&
-      <Box role="status" sx={{ position: "fixed", zIndex: 9, top: 82, left: "50%", transform: "translateX(-50%)",
-        width: 430, maxWidth: "calc(100vw - 2rem)", px: 1.2, py: .75, border: `2px solid ${ORANGE}`,
-        background: "rgba(7,8,12,.9)", color: CREAM, fontFamily: MONO, fontSize: ".6rem" }}>
-        <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-          <span>OBSERVED {observedRoute.toUpperCase()} ROUTE · {effectivePriority.toUpperCase()} PRIORITY · {moduleCount} MODULE{moduleCount === 1 ? "" : "S"}</span>
-          <span>{mission.attemptsRemaining} ATTEMPTS LEFT</span>
-        </Box>
-        <Box sx={{ mt: .5, height: 6, background: "rgba(250,248,242,.14)" }}>
-          <Box sx={{ width: `${mission.containment ?? 0}%`, height: "100%",
-            background: (mission.containment ?? 0) >= 70 ? "#ff5b52" : ORANGE }} />
-        </Box>
-        <Box sx={{ mt: .25, display: "flex", justifyContent: "space-between",
-          color: "rgba(250,248,242,.55)" }}><span>CONTAINMENT INSTABILITY</span><span>{mission.containment ?? 0}%</span></Box>
+    {mission.stage === 1 && showContainment && mission.status !== "success" &&
+      <Box role="status" aria-live="polite" sx={{ position: "fixed", zIndex: 9, top: 82, left: "50%",
+        transform: "translateX(-50%)", px: 1.4, py: .75, border: `2px solid ${stability <= 30 ? "#ff5b52" : ORANGE}`,
+        background: "rgba(7,8,12,.92)", color: CREAM, fontFamily: MONO, fontSize: ".68rem",
+        letterSpacing: ".08em", pointerEvents: "none" }}>
+        CONTAINMENT STABILITY · {stability}%
       </Box>}
     {standing && <Box aria-hidden sx={{ position: "fixed", inset: 0, zIndex: 8,
       pointerEvents: "none", background: "#20ff87", mixBlendMode: "screen",

@@ -566,7 +566,7 @@ async function boot({ scene, camera, renderer }) {
       speaker: speakerApi,
       battery: store().battery,
       missionResources: { observedRoute: store().mission.observedRoute,
-        attemptsRemaining: store().mission.attemptsRemaining, containment: store().mission.containment },
+        containmentStability: Math.max(0, 100 - (store().mission.containment ?? 0)) },
     }),
     manualActive,
     onStatus: (autonomyStatus) => setStore({ autonomyStatus }),

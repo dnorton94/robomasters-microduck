@@ -156,10 +156,11 @@ Mission intent is inferred from the system the participant builds rather than
 selected in a form. The simulator observes whether MicroDuck actually follows
 a direct, balanced or cautious path: shorter routes conserve energy but expose
 the mission to more containment risk, while longer routes consume more battery
-and reduce that risk. Stage One has a limited attempt budget, failed attempts
-increase containment instability, and every behaviour module attached to the
-active profile adds mission power draw. Custom code can inspect the resulting
-trade-offs through `sensors.missionResources`.
+and reduce that risk. Failed attempts increase containment instability and
+eventually end the mission, without revealing how many opportunities remain.
+Every behaviour module attached to the active profile adds mission power draw.
+Custom code can inspect the observed route and containment stability through
+`sensors.missionResources`, but not the hidden attempt budget.
 The duck must solve the plate's hidden timing protocol using autonomous control;
 the mission panel and plate lighting provide experimental feedback without
 publishing the thresholds in the interface. Manual entry is rejected, leaving
